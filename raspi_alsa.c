@@ -14,19 +14,33 @@
 #include <poll.h>
 #include <alsa/asoundlib.h>
 
+//--------------------------------------------------------
+//		Macros
+//--------------------------------------------------------
+#define		MAX_BUF_SIZE		4096
+#define		SAMPLING_FREQ		44100
+
+
+//--------------------------------------------------------
+//		Variables
+//--------------------------------------------------------
 snd_pcm_t *playback_handle;
-short buf[4096];
+int16_t buf[MAX_BUF_SIZE];
 
 //--------------------------------------------------------
 //		Callback
 //--------------------------------------------------------
 int playback_callback (snd_pcm_sframes_t nframes)
 {
-	int err;
+	int err, i;
 	
 	printf ("playback callback called with %u frames\n", nframes);
 	
 	/* ... fill buf with data ... */
+	for ( i=0; i<nframes; i++ ){
+		buf[i] = (i%256 - 128)*100;
+//		bur[i] = (i%256)/128 >= 1 ? 10000:-10000;
+	}
 	
 	if ((err = snd_pcm_writei (playback_handle, buf, nframes)) < 0) {
 		fprintf (stderr, "write failed (%s)\n", snd_strerror (err));
@@ -47,10 +61,12 @@ main (int argc, char *argv[])
 	int nfds;
 	int err;
 	struct pollfd *pfds;
+	const char device[] = "hw:0";
+	int smpl_rate = SAMPLING_FREQ;
 	
-	if ((err = snd_pcm_open (&playback_handle, argv[1], SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+	if ((err = snd_pcm_open (&playback_handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 		fprintf (stderr, "cannot open audio device %s (%s)\n",
-				 argv[1],
+				 device,
 				 snd_strerror (err));
 		exit (1);
 	}
@@ -79,13 +95,13 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 	
-	if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, 44100, 0)) < 0) {
+	if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &smpl_rateO, 0)) < 0) {
 		fprintf (stderr, "cannot set sample rate (%s)\n",
 				 snd_strerror (err));
 		exit (1);
 	}
 	
-	if ((err = snd_pcm_hw_params_set_channels (playback_handle, hw_params, 2)) < 0) {
+	if ((err = snd_pcm_hw_params_set_channels (playback_handle, hw_params, 1)) < 0) {
 		fprintf (stderr, "cannot set channel count (%s)\n",
 				 snd_strerror (err));
 		exit (1);
@@ -114,7 +130,7 @@ main (int argc, char *argv[])
 				 snd_strerror (err));
 		exit (1);
 	}
-	if ((err = snd_pcm_sw_params_set_avail_min (playback_handle, sw_params, 4096)) < 0) {
+	if ((err = snd_pcm_sw_params_set_avail_min (playback_handle, sw_params, MAX_BUF_SIZE)) < 0) {
 		fprintf (stderr, "cannot set minimum available count (%s)\n",
 				 snd_strerror (err));
 		exit (1);
@@ -164,7 +180,7 @@ main (int argc, char *argv[])
 			}
 		}
 		
-		frames_to_deliver = frames_to_deliver > 4096 ? 4096 : frames_to_deliver;
+		frames_to_deliver = frames_to_deliver > MAX_BUF_SIZE ? MAX_BUF_SIZE : frames_to_deliver;
 		
 		/* deliver the data */
 		
