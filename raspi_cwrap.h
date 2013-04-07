@@ -6,8 +6,8 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
-#ifndef ToneGenerator_raspi_cwrap_h
-#define ToneGenerator_raspi_cwrap_h
+#ifndef raspi_cwrap_h
+#define raspi_cwrap_h
 
 extern void raspiaudio_Init( void );
 extern void raspaudio_End( void );

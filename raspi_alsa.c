@@ -6,13 +6,14 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
+#define RASPI
 #ifdef RASPI
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <poll.h>
-#include <alsa/asoundlib.h>
+//#include <alsa/asoundlib.h>
 
 #include	"raspi_cwrap.h"
 
@@ -34,12 +35,12 @@ int16_t buf[MAX_BUF_SIZE];
 //--------------------------------------------------------
 int playback_callback (snd_pcm_sframes_t nframes)
 {
-	int err, i;
+	int err;
 	
 	printf ("playback callback called with %u frames\n", nframes);
 	
 	/* ... fill buf with data ... */
-//	for ( i=0; i<nframes; i++ ){
+//	for ( int i=0; i<nframes; i++ ){
 //		buf[i] = (i%256 - 128)*100;
 //		buf[i] = (i%256)/128 >= 1 ? 10000:-10000;
 //	}
@@ -55,7 +56,10 @@ int playback_callback (snd_pcm_sframes_t nframes)
 //--------------------------------------------------------
 //		Main
 //--------------------------------------------------------
+#if 0
 main (int argc, char *argv[])
+#endif
+void test( int argc, char *argv[])
 {
 	
 	snd_pcm_hw_params_t *hw_params;
@@ -167,12 +171,12 @@ main (int argc, char *argv[])
 
 	
 	//--------------------------------------------------------
-	switch ( argv[0] ){
-		case 'c':
-			unsigned char msg[3];
-			msg[0] = 0x90; msg[1] = 0x3c; msg[2] = 0x7f;
+	switch ( *argv[1] ){
+		case 'c':{
+			unsigned char msg[3] = { 0x90, 0x3c, 0x7f };
 			raspiaudio_Message( msg, 3 );
 			break;
+		}
 		default: break;
 	}
 	
@@ -213,6 +217,7 @@ main (int argc, char *argv[])
 	}
 	
 	snd_pcm_close (playback_handle);
+	raspaudio_End();
 	exit (0);
 }
 #endif

@@ -6,8 +6,8 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
-#ifndef __ToneGenerator__raspi_audioout__
-#define __ToneGenerator__raspi_audioout__
+#ifndef __raspi_audioout__
+#define __raspi_audioout__
 
 #include <iostream>
 
