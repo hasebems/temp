@@ -14,9 +14,19 @@
 static AudioOutput au;
 
 //--------------------------------------------------------
+//		extern "C"
+//--------------------------------------------------------
+extern "C" {
+	void raspiaudio_Init( void );
+	void raspaudio_End( void );
+	int	raspiaudio_Process( int16_t* buf, int bufsize );
+	int	raspiaudio_Message( unsigned char* message, int msgsize );
+}
+
+//--------------------------------------------------------
 //		Initialize
 //--------------------------------------------------------
-extern "C" void raspiaudio_Init( void )
+void raspiaudio_Init( void )
 {
 	au.SetTg( new msgf::Msgf() );
 }
@@ -24,7 +34,7 @@ extern "C" void raspiaudio_Init( void )
 //--------------------------------------------------------
 //		End
 //--------------------------------------------------------
-extern "C" void raspaudio_End( void )
+void raspaudio_End( void )
 {
 	void*	tg = au.GetTg();
 	delete reinterpret_cast<msgf::Msgf*>(tg);
@@ -33,7 +43,7 @@ extern "C" void raspaudio_End( void )
 //--------------------------------------------------------
 //		Audio Process
 //--------------------------------------------------------
-extern "C" int	raspiaudio_Process( int16_t* buf, int bufsize )
+int	raspiaudio_Process( int16_t* buf, int bufsize )
 {
 	msgf::TgAudioBuffer	abuf;						//	MSGF IF
 	msgf::Msgf*	tg = reinterpret_cast<msgf::Msgf*>(au.GetTg());
@@ -53,7 +63,7 @@ extern "C" int	raspiaudio_Process( int16_t* buf, int bufsize )
 //--------------------------------------------------------
 //		Receive Message
 //--------------------------------------------------------
-extern "C" int	raspiaudio_Message( unsigned char* message, int msgsize )
+int	raspiaudio_Message( unsigned char* message, int msgsize )
 {
 	unsigned char	msg[3];
 	msgf::Msgf*	tg = reinterpret_cast<msgf::Msgf*>(au.GetTg());
