@@ -6,14 +6,18 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
-#define RASPI
+#define RASPI		//	Undefine when building on Xcode
+//#define XCODE_CHK	//	compile check on Xcode
 #ifdef RASPI
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <poll.h>
-//#include <alsa/asoundlib.h>
+
+#ifndef XCODE_CHK
+#include <alsa/asoundlib.h>
+#endif
 
 #include	"raspi_cwrap.h"
 
@@ -44,7 +48,7 @@ int playback_callback (snd_pcm_sframes_t nframes)
 //		buf[i] = (i%256 - 128)*100;
 //		buf[i] = (i%256)/128 >= 1 ? 10000:-10000;
 //	}
-	raspiaudio_Process( &buf, nframes );
+	raspiaudio_Process( (int16_t*)&buf, nframes );
 	
 	if ((err = snd_pcm_writei (playback_handle, buf, nframes)) < 0) {
 		fprintf (stderr, "write failed (%s)\n", snd_strerror (err));
@@ -56,10 +60,11 @@ int playback_callback (snd_pcm_sframes_t nframes)
 //--------------------------------------------------------
 //		Main
 //--------------------------------------------------------
-#if 0
+#ifndef XCODE_CHK
 main (int argc, char *argv[])
-#endif
+#else
 void test( int argc, char *argv[])
+#endif
 {
 	
 	snd_pcm_hw_params_t *hw_params;
@@ -69,7 +74,7 @@ void test( int argc, char *argv[])
 	int err;
 	struct pollfd *pfds;
 	const char device[] = "hw:0";
-	int smpl_rate = SAMPLING_FREQ;
+	unsigned int smpl_rate = SAMPLING_FREQ;
 
 	//--------------------------------------------------------
 	//	Call Init MSGF
