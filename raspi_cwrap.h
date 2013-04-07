@@ -9,9 +9,18 @@
 #ifndef raspi_cwrap_h
 #define raspi_cwrap_h
 
-extern void raspiaudio_Init( void );
-extern void raspaudio_End( void );
-extern int	raspiaudio_Process( int16_t* buf, int bufsize );
-extern int	raspiaudio_Message( unsigned char* msg, int msgsize );
+//--------------------------------------------------------
+//		extern "C"
+//--------------------------------------------------------
+#if __cplusplus
+extern "C" {
+#endif
+	void raspiaudio_Init( void );
+	void raspiaudio_End( void );
+	int	raspiaudio_Process( int16_t* buf, int bufsize );
+	int	raspiaudio_Message( unsigned char* message, int msgsize );
+#if __cplusplus
+}
+#endif
 
 #endif

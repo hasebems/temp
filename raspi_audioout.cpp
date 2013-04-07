@@ -11,17 +11,9 @@
 #include "msgf_audio_buffer.h"
 #include "msgf_if.h"
 
-static AudioOutput au;
+#include "raspi_cwrap.h"
 
-//--------------------------------------------------------
-//		extern "C"
-//--------------------------------------------------------
-extern "C" {
-	void raspiaudio_Init( void );
-	void raspaudio_End( void );
-	int	raspiaudio_Process( int16_t* buf, int bufsize );
-	int	raspiaudio_Message( unsigned char* message, int msgsize );
-}
+static AudioOutput au;
 
 //--------------------------------------------------------
 //		Initialize
@@ -34,7 +26,7 @@ void raspiaudio_Init( void )
 //--------------------------------------------------------
 //		End
 //--------------------------------------------------------
-void raspaudio_End( void )
+void raspiaudio_End( void )
 {
 	void*	tg = au.GetTg();
 	delete reinterpret_cast<msgf::Msgf*>(tg);
