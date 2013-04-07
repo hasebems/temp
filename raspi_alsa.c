@@ -14,10 +14,12 @@
 #include <poll.h>
 #include <alsa/asoundlib.h>
 
+#include	"raspi_cwrap.h"
+
 //--------------------------------------------------------
 //		Macros
 //--------------------------------------------------------
-#define		MAX_BUF_SIZE		4096
+#define		MAX_BUF_SIZE		256
 #define		SAMPLING_FREQ		44100
 
 
@@ -37,10 +39,11 @@ int playback_callback (snd_pcm_sframes_t nframes)
 	printf ("playback callback called with %u frames\n", nframes);
 	
 	/* ... fill buf with data ... */
-	for ( i=0; i<nframes; i++ ){
-		buf[i] = (i%256 - 128)*100;
-//		bur[i] = (i%256)/128 >= 1 ? 10000:-10000;
-	}
+//	for ( i=0; i<nframes; i++ ){
+//		buf[i] = (i%256 - 128)*100;
+//		buf[i] = (i%256)/128 >= 1 ? 10000:-10000;
+//	}
+	raspiaudio_Process( &buf, nframes );
 	
 	if ((err = snd_pcm_writei (playback_handle, buf, nframes)) < 0) {
 		fprintf (stderr, "write failed (%s)\n", snd_strerror (err));
@@ -63,7 +66,12 @@ main (int argc, char *argv[])
 	struct pollfd *pfds;
 	const char device[] = "hw:0";
 	int smpl_rate = SAMPLING_FREQ;
+
+	//--------------------------------------------------------
+	//	Call Init MSGF
+	raspiaudio_Init();
 	
+	//--------------------------------------------------------
 	if ((err = snd_pcm_open (&playback_handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 		fprintf (stderr, "cannot open audio device %s (%s)\n",
 				 device,
@@ -95,7 +103,7 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 	
-	if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &smpl_rateO, 0)) < 0) {
+	if ((err = snd_pcm_hw_params_set_rate_near (playback_handle, hw_params, &smpl_rate, 0)) < 0) {
 		fprintf (stderr, "cannot set sample rate (%s)\n",
 				 snd_strerror (err));
 		exit (1);
@@ -115,7 +123,8 @@ main (int argc, char *argv[])
 	
 	snd_pcm_hw_params_free (hw_params);
 	
-	/* tell ALSA to wake us up whenever 4096 or more frames
+	//--------------------------------------------------------
+	/* tell ALSA to wake us up whenever MAX_BUF_SIZE or more frames
 	 of playback data can be delivered. Also, tell
 	 ALSA that we'll start the device ourselves.
 	 */
@@ -135,7 +144,7 @@ main (int argc, char *argv[])
 				 snd_strerror (err));
 		exit (1);
 	}
-	if ((err = snd_pcm_sw_params_set_start_threshold (playback_handle, sw_params, 0U)) < 0) {
+	if ((err = snd_pcm_sw_params_set_start_threshold (playback_handle, sw_params, 16384)) < 0) {
 		fprintf (stderr, "cannot set start mode (%s)\n",
 				 snd_strerror (err));
 		exit (1);
@@ -146,7 +155,7 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 	
-	/* the interface will interrupt the kernel every 4096 frames, and ALSA
+	/* the interface will interrupt the kernel every MAX_BUF_SIZE frames, and ALSA
 	 will wake up this program very soon after that.
 	 */
 	
@@ -155,7 +164,20 @@ main (int argc, char *argv[])
 				 snd_strerror (err));
 		exit (1);
 	}
+
 	
+	//--------------------------------------------------------
+	switch ( argv[0] ){
+		case 'c':
+			unsigned char msg[3];
+			msg[0] = 0x90; msg[1] = 0x3c; msg[2] = 0x7f;
+			raspiaudio_Message( msg, 3 );
+			break;
+		default: break;
+	}
+	
+	
+	//--------------------------------------------------------
 	while (1) {
 		
 		/* wait till the interface is ready for data, or 1 second
