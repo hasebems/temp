@@ -152,12 +152,13 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 	}
 
 	//	get wave data
-	int16_t* buf = malloc(sizeof(int16_t) * count);
+	int16_t* buf = (int16_t*)malloc(sizeof(int16_t) * count);
 	raspiaudio_Process( buf, count );
 	
 	/* fill the channel areas */
 	while (count-- > 0) {
-		res = buf[count];
+		int i;
+		int16_t res = buf[count];
 
 		if (to_unsigned)
 			res ^= 1U << (format_bits - 1);
