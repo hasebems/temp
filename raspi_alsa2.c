@@ -410,7 +410,7 @@ static int write_and_poll_loop(snd_pcm_t *handle,
 		printf("Invalid poll descriptors count\n");
 		return count;
 	}
-	ufds = malloc(sizeof(struct pollfd) * count);
+	ufds = (struct pollfd*)malloc(sizeof(struct pollfd) * count);
 	if (ufds == NULL) {
 		printf("No enough memory\n");
 		return -ENOMEM;
@@ -489,7 +489,7 @@ struct async_private_data {
 static void async_callback(snd_async_handler_t *ahandler)
 {
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
-	struct async_private_data *data = snd_async_handler_get_callback_private(ahandler);
+	struct async_private_data *data = (struct async_private_data *)snd_async_handler_get_callback_private(ahandler);
 	signed short *samples = data->samples;
 	snd_pcm_channel_area_t *areas = data->areas;
 	snd_pcm_sframes_t avail;
@@ -561,7 +561,7 @@ static int async_loop(snd_pcm_t *handle,
 static void async_direct_callback(snd_async_handler_t *ahandler)
 {
 	snd_pcm_t *handle = snd_async_handler_get_pcm(ahandler);
-	struct async_private_data *data = snd_async_handler_get_callback_private(ahandler);
+	struct async_private_data *data = (struct async_private_data *)snd_async_handler_get_callback_private(ahandler);
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t offset, frames, size;
 	snd_pcm_sframes_t avail, commitres;
@@ -849,7 +849,7 @@ static void help(void)
 		   "\n");
 	printf("Recognized sample formats are:");
 	for (k = 0; k < SND_PCM_FORMAT_LAST; ++k) {
-		const char *s = snd_pcm_format_name(k);
+		const char *s = (const char *)snd_pcm_format_name(k);
 		if (s)
 			printf(" %s", s);
 	}
@@ -938,7 +938,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'o':
 				for (format = 0; format < SND_PCM_FORMAT_LAST; format++) {
-					const char *format_name = snd_pcm_format_name(format);
+					const char *format_name = (const char *)snd_pcm_format_name(format);
 					if (format_name)
 						if (!strcasecmp(format_name, optarg))
 							break;
@@ -1002,14 +1002,14 @@ int main(int argc, char *argv[])
 	//	reserve memory
 	if (verbose > 0)
 		snd_pcm_dump(handle, output);
-	samples = malloc((period_size * channels * snd_pcm_format_physical_width(format)) / 8);
+	samples = (signed short *)malloc((period_size * channels * snd_pcm_format_physical_width(format)) / 8);
 	if (samples == NULL) {
 		printf("No enough memory\n");
 		exit(EXIT_FAILURE);
 	}
 	
 	//	create imfomation by snd_pcm_channel_area_t
-	areas = calloc(channels, sizeof(snd_pcm_channel_area_t));
+	areas = (snd_pcm_channel_area_t *)calloc(channels, sizeof(snd_pcm_channel_area_t));
 	if (areas == NULL) {
 		printf("No enough memory\n");
 		exit(EXIT_FAILURE);
