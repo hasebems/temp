@@ -6,7 +6,7 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
-#define RASPI		//	Undefine when building on Xcode
+//#define RASPI		//	Undefine when building on Xcode
 //#define XCODE_CHK	//	compile check on Xcode
 #ifdef RASPI
 
@@ -24,7 +24,7 @@
 //--------------------------------------------------------
 //		Macros
 //--------------------------------------------------------
-#define		MAX_BUF_SIZE		256
+#define		MAX_BUF_SIZE		4096
 #define		SAMPLING_FREQ		44100
 
 
@@ -202,7 +202,7 @@ void test( int argc, char *argv[])
 		
 		if ((frames_to_deliver = snd_pcm_avail_update (playback_handle)) < 0) {
 			if (frames_to_deliver == -EPIPE) {
-				fprintf (stderr, "an xrun occured\n");
+				fprintf (stderr, "an xrun occurred\n");
 				break;
 			} else {
 				fprintf (stderr, "unknown ALSA avail update return value (%d)\n",
@@ -222,7 +222,7 @@ void test( int argc, char *argv[])
 	}
 	
 	snd_pcm_close (playback_handle);
-	raspaudio_End();
+	raspiaudio_End();
 	exit (0);
 }
 #endif
