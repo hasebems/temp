@@ -849,7 +849,7 @@ static void help(void)
 		   "\n");
 	printf("Recognized sample formats are:");
 	for (k = 0; k < SND_PCM_FORMAT_LAST; ++k) {
-		const char *s = (const char *)snd_pcm_format_name(k);
+		const char *s = (const char *)snd_pcm_format_name((snd_pcm_format_t)k);
 		if (s)
 			printf(" %s", s);
 	}
@@ -937,8 +937,9 @@ int main(int argc, char *argv[])
 					method = 0;
 				break;
 			case 'o':
-				for (format = 0; format < SND_PCM_FORMAT_LAST; format++) {
-					const char *format_name = (const char *)snd_pcm_format_name(format);
+				int _format;
+				for (_format = 0; _format < SND_PCM_FORMAT_LAST; _format++) {
+					const char *format_name = (const char *)snd_pcm_format_name((snd_pcm_format_t)_format);
 					if (format_name)
 						if (!strcasecmp(format_name, optarg))
 							break;
