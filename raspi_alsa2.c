@@ -9,7 +9,7 @@
 
 //	This small demo sends a simple sinusoidal wave to your speakers.
 
-//#define RASPI		//	Undefine when building on Xcode
+#define RASPI		//	Undefine when building on Xcode
 //#define XCODE_CHK	//	compile check on Xcode
 #ifdef RASPI
 
@@ -19,7 +19,6 @@
 #include <sched.h>
 #include <errno.h>
 #include <getopt.h>
-//#include "../include/asoundlib.h"
 #include <sys/time.h>
 #include <math.h>
 
@@ -47,8 +46,9 @@ static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
 
 //-------------------------------------------------------------------------
-//
+//		Generate Wave : Original/MSGF  
 //-------------------------------------------------------------------------
+#if 0
 static void generate_wave(const snd_pcm_channel_area_t *areas,
                           snd_pcm_uframes_t offset,
                           int count, double *_phase)
@@ -56,6 +56,74 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 	static double max_phase = 2. * M_PI;
 	double phase = *_phase;
 	double step = max_phase*freq/(double)rate;
+	unsigned char *samples[channels];
+	int steps[channels];
+	unsigned int chn;
+	int format_bits = snd_pcm_format_width(format);
+	unsigned int maxval = (1 << (format_bits - 1)) - 1;
+	int bps = format_bits / 8;  /* bytes per sample */
+	int phys_bps = snd_pcm_format_physical_width(format) / 8;
+	int big_endian = snd_pcm_format_big_endian(format) == 1;
+	int to_unsigned = snd_pcm_format_unsigned(format) == 1;
+	int is_float = (format == SND_PCM_FORMAT_FLOAT_LE ||
+					format == SND_PCM_FORMAT_FLOAT_BE);
+	
+	/* verify and prepare the contents of areas */
+	for (chn = 0; chn < channels; chn++) {
+		if ((areas[chn].first % 8) != 0) {
+			printf("areas[%i].first == %i, aborting...\n", chn, areas[chn].first);
+			exit(EXIT_FAILURE);
+		}
+		samples[chn] = /*(signed short *)*/(((unsigned char *)areas[chn].addr) + (areas[chn].first / 8));
+		if ((areas[chn].step % 16) != 0) {
+			printf("areas[%i].step == %i, aborting...\n", chn, areas[chn].step);
+			exit(EXIT_FAILURE);
+		}
+		steps[chn] = areas[chn].step / 8;
+		samples[chn] += offset * steps[chn];
+	}
+	
+	/* fill the channel areas */
+	while (count-- > 0) {
+		union {
+			float f;
+			int i;
+		} fval;
+		int res, i;
+		
+		if (is_float) {
+			fval.f = sin(phase) * maxval;
+			res = fval.i;
+		} else
+			res = sin(phase) * maxval;
+		
+		if (to_unsigned)
+			res ^= 1U << (format_bits - 1);
+		
+		for (chn = 0; chn < channels; chn++) {
+			/* Generate data in native endian format */
+			if (big_endian) {
+				for (i = 0; i < bps; i++)
+					*(samples[chn] + phys_bps - 1 - i) = (res >> i * 8) & 0xff;
+			} else {
+				for (i = 0; i < bps; i++)
+					*(samples[chn] + i) = (res >>  i * 8) & 0xff;
+			}
+			samples[chn] += steps[chn];
+		}
+		
+		phase += step;
+		if (phase >= max_phase)
+			phase -= max_phase;
+	}
+	*_phase = phase;
+}
+#else
+//-------------------------------------------------------------------------
+static void generate_wave(const snd_pcm_channel_area_t *areas,
+                          snd_pcm_uframes_t offset,
+                          int count, double *_phase)
+{
 	unsigned char *samples[channels];
 	int steps[channels];
 	unsigned int chn;
@@ -83,19 +151,13 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 		samples[chn] += offset * steps[chn];
 	}
 
+	//	get wave data
+	int16_t* buf = malloc(sizeof(int16_t) * count);
+	raspiaudio_Process( buf, count );
+	
 	/* fill the channel areas */
 	while (count-- > 0) {
-		union {
-			float f;
-			int i;
-		} fval;
-		int res, i;
-
-		if (is_float) {
-			fval.f = sin(phase) * maxval;
-			res = fval.i;
-		} else
-			res = sin(phase) * maxval;
+		res = buf[count];
 
 		if (to_unsigned)
 			res ^= 1U << (format_bits - 1);
@@ -111,14 +173,10 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 			}
 			samples[chn] += steps[chn];
 		}
-
-		phase += step;
-		if (phase >= max_phase)
-			phase -= max_phase;
 	}
-	*_phase = phase;
+	free(buf);
 }
-
+#endif
 
 //-------------------------------------------------------------------------
 //			Hardware Parameters
@@ -961,6 +1019,13 @@ int main(int argc, char *argv[])
 		areas[chn].step = channels * snd_pcm_format_physical_width(format);
 	}
 
+	//--------------------------------------------------------
+	//	Send MIDI Message to MSGF
+	{
+		unsigned char msg[3] = { 0x90, 0x3c, 0x7f };
+		raspiaudio_Message( msg, 3 );
+	}
+	
 	//	Main Loop
 	err = transfer_methods[method].transfer_loop(handle, samples, areas);
 	if (err < 0)
@@ -975,4 +1040,4 @@ int main(int argc, char *argv[])
 	
 	return 0;
 }
-
+#endif
