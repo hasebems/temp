@@ -9,8 +9,8 @@
 
 //	This small demo sends a simple sinusoidal wave to your speakers.
 
-#define RASPI		//	Undefine when building on Xcode
-//#define XCODE_CHK	//	compile check on Xcode
+//#define RASPI		//	Undefine when building on Xcode
+#define XCODE_CHK	//	compile check on Xcode
 #ifdef RASPI
 
 #include <stdio.h>
@@ -35,8 +35,8 @@ static char *device = "plughw:0,0";                     /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16;    /* sample format */
 static unsigned int rate = 44100;                       /* stream rate */
 static unsigned int channels = 1;                       /* count of channels */
-static unsigned int buffer_time = 500000;               /* ring buffer length in us */
-static unsigned int period_time = 100000;               /* period time in us */
+static unsigned int buffer_time = 50000;               /* ring buffer length in us */
+static unsigned int period_time = 10000;               /* period time in us */
 static double freq = 440;                               /* sinusoidal wave frequency in Hz */
 static int verbose = 0;                                 /* verbose flag */
 static int resample = 1;                                /* enable alsa-lib resampling */
@@ -122,11 +122,12 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 //-------------------------------------------------------------------------
 static void generate_wave(const snd_pcm_channel_area_t *areas,
                           snd_pcm_uframes_t offset,
-                          int count, double *_phase)
+                          int maxCount, double *_phase)
 {
 	unsigned char *samples[channels];
 	int steps[channels];
 	unsigned int chn;
+	int count = 0;
 	int format_bits = snd_pcm_format_width(format);
 	unsigned int maxval = (1 << (format_bits - 1)) - 1;
 	int bps = format_bits / 8;  /* bytes per sample */
@@ -152,13 +153,13 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 	}
 
 	//	get wave data
-	int16_t* buf = (int16_t*)malloc(sizeof(int16_t) * count);
-	raspiaudio_Process( buf, count );
+	int16_t* buf = (int16_t*)malloc(sizeof(int16_t) * maxCount);
+	raspiaudio_Process( buf, maxCount );
 	
 	/* fill the channel areas */
-	while (count-- > 0) {
+	while (count < maxCount) {
 		int i;
-		int16_t res = buf[count];
+		int16_t res = buf[count++];
 
 		if (to_unsigned)
 			res ^= 1U << (format_bits - 1);
@@ -862,7 +863,11 @@ static void help(void)
 //-------------------------------------------------------------------------
 //			MAIN
 //-------------------------------------------------------------------------
+#ifndef XCODE_CHK
 int main(int argc, char *argv[])
+#else
+void test2( int argc, char *argv[])
+#endif
 {
 	struct option long_option[] =
 	{
