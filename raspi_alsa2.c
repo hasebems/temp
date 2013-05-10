@@ -35,8 +35,8 @@ static char *device = "plughw:0,0";                     /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16;    /* sample format */
 static unsigned int rate = 44100;                       /* stream rate */
 static unsigned int channels = 1;                       /* count of channels */
-static unsigned int buffer_time = 50000;               /* ring buffer length in us */
-static unsigned int period_time = 10000;               /* period time in us */
+static unsigned int buffer_time = 100000;               /* ring buffer length in us */
+static unsigned int period_time = 20000;               /* period time in us */
 static double freq = 440;                               /* sinusoidal wave frequency in Hz */
 static int verbose = 0;                                 /* verbose flag */
 static int resample = 1;                                /* enable alsa-lib resampling */
@@ -481,6 +481,28 @@ static int write_and_poll_loop(snd_pcm_t *handle,
 //-------------------------------------------------------------------------
 //		Transfer method - asynchronous notification
 //-------------------------------------------------------------------------
+static void input_from_keyboard( void )
+{
+	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0;
+	unsigned char msg[3];
+	msg[0] = 0x90;
+
+	int key;
+	while ( key = getchar() != -1 ){
+		swtich (key){
+			case 'c': msg[1] = 0x3c; c?(c=0,msg[2]=0):(c=1,msg[2]=0x7f); break;
+			case 'd': msg[1] = 0x3e; d?(d=0,msg[2]=0):(d=1,msg[2]=0x7f); break;
+			case 'e': msg[1] = 0x40; e?(e=0,msg[2]=0):(e=1,msg[2]=0x7f); break;
+			case 'f': msg[1] = 0x41; f?(f=0,msg[2]=0):(f=1,msg[2]=0x7f); break;
+			case 's': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); break;
+			case 'l': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); break;
+			case 't': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); break;
+			default: break;
+		}
+		raspiaudio_Message( msg, 3 );
+	}
+};
+//-------------------------------------------------------------------------
 struct async_private_data {
 	signed short *samples;
 	snd_pcm_channel_area_t *areas;
@@ -552,9 +574,10 @@ static int async_loop(snd_pcm_t *handle,
 
 	/* because all other work is done in the signal handler,
 	 suspend the process */
-	while (1) {
-		sleep(1);
-	}
+	input_from_keyboard();
+	//while (1) {
+	//	sleep(1);
+	//}
 }
 //-------------------------------------------------------------------------
 //		Transfer method - asynchronous notification + direct write
@@ -684,9 +707,10 @@ static int async_direct_loop(snd_pcm_t *handle,
 
 	/* because all other work is done in the signal handler,
 	 suspend the process */
-	while (1) {
-		sleep(1);
-	}
+	input_from_keyboard();
+	//while (1) {
+	//	sleep(1);
+	//}
 }
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only
@@ -986,6 +1010,7 @@ void test2( int argc, char *argv[])
 	printf("Stream parameters are %iHz, %s, %i channels\n", rate, snd_pcm_format_name(format), channels);
 	printf("Sine wave rate is %.4fHz\n", freq);
 	printf("Using transfer method: %s\n", transfer_methods[method].name);
+
 	if ((err = snd_pcm_open(&handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 		printf("Playback open error: %s\n", snd_strerror(err));
 		return 0;
@@ -1005,6 +1030,9 @@ void test2( int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	printf("Buffer Size is %d\n", buffer_size);
+	printf("Period Size is %d\n", period_size);
+	
 	//	reserve memory
 	if (verbose > 0)
 		snd_pcm_dump(handle, output);
@@ -1028,7 +1056,7 @@ void test2( int argc, char *argv[])
 
 	//--------------------------------------------------------
 	//	Send MIDI Message to MSGF
-	{
+	if (( method != 2 ) && ( method != 3 )){
 		unsigned char msg[3] = { 0x90, 0x3c, 0x7f };
 		raspiaudio_Message( msg, 3 );
 	}
