@@ -485,21 +485,23 @@ static void input_from_keyboard( void )
 {
 	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0;
 	unsigned char msg[3];
-	msg[0] = 0x90;
-
 	int key;
-	while ( key = getchar() != -1 ){
-		swtich (key){
+
+	while (( key = getchar()) != -1 ){
+		msg[0] = 0x90; msg[1] = 0;
+		switch (key){
 			case 'c': msg[1] = 0x3c; c?(c=0,msg[2]=0):(c=1,msg[2]=0x7f); break;
 			case 'd': msg[1] = 0x3e; d?(d=0,msg[2]=0):(d=1,msg[2]=0x7f); break;
 			case 'e': msg[1] = 0x40; e?(e=0,msg[2]=0):(e=1,msg[2]=0x7f); break;
 			case 'f': msg[1] = 0x41; f?(f=0,msg[2]=0):(f=1,msg[2]=0x7f); break;
-			case 's': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); break;
-			case 'l': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); break;
-			case 't': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); break;
+			case 'g': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); break;
+			case 'a': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); break;
+			case 'b': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); break;
 			default: break;
 		}
-		raspiaudio_Message( msg, 3 );
+		if ( msg[1] != 0 ){
+			raspiaudio_Message( msg, 3 );
+		}
 	}
 };
 //-------------------------------------------------------------------------
