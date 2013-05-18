@@ -954,7 +954,7 @@ static int direct_loop(snd_pcm_t *handle,
 	inputFromKeyboard( &mutex );
 
 	//	End of Thread
-	pthread_join( &threadId, NULL );
+	pthread_join( threadId, NULL );
 }
 
 
