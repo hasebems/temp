@@ -10,7 +10,6 @@
 //	This small demo sends a simple sinusoidal wave to your speakers.
 
 //#define RASPI		//	Undefine when building on Xcode
-#define XCODE_CHK	//	compile check on Xcode
 #ifdef RASPI
 
 #include <stdio.h>
@@ -22,9 +21,8 @@
 #include <sys/time.h>
 #include <math.h>
 
-#ifndef XCODE_CHK
 #include <alsa/asoundlib.h>
-#endif
+#include <pthread.h>
 
 #include	"raspi_cwrap.h"
 
@@ -717,6 +715,7 @@ static int async_direct_loop(snd_pcm_t *handle,
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only
 //-------------------------------------------------------------------------
+#if 0
 static int direct_loop(snd_pcm_t *handle,
                        signed short *samples ATTRIBUTE_UNUSED,
                        snd_pcm_channel_area_t *areas ATTRIBUTE_UNUSED)
@@ -801,6 +800,163 @@ static int direct_loop(snd_pcm_t *handle,
 		}
 	}
 }
+#endif
+//-------------------------------------------------------------------------
+struct THREAD_INFO {
+	snd_pcm_t*			alsaHandle;
+	pthread_mutex_t*	mutexHandle;
+};
+//-------------------------------------------------------------------------
+static void* audioThread( void* thInfo )
+{
+	THREAD_INFO* inf = (THREAD_INFO*)thInfo;
+	snd_pcm_t* handle = inf->alsaHandle;
+	double phase = 0;
+	const snd_pcm_channel_area_t *my_areas;
+	snd_pcm_uframes_t offset, frames, size;
+	snd_pcm_sframes_t avail, commitres;
+	snd_pcm_state_t state;
+	int err, first = 1;
+	
+	while (1) {
+		state = snd_pcm_state(handle);
+		if (state == SND_PCM_STATE_XRUN) {
+			err = xrun_recovery(handle, -EPIPE);
+			if (err < 0) {
+				printf("XRUN recovery failed: %s\n", snd_strerror(err));
+				goto END_OF_THREAD;
+				//return err;
+			}
+			first = 1;
+		} else if (state == SND_PCM_STATE_SUSPENDED) {
+			err = xrun_recovery(handle, -ESTRPIPE);
+			if (err < 0) {
+				printf("SUSPEND recovery failed: %s\n", snd_strerror(err));
+				goto END_OF_THREAD;
+				//return err;
+			}
+		}
+		
+		avail = snd_pcm_avail_update(handle);
+		if (avail < 0) {
+			err = xrun_recovery(handle, avail);
+			if (err < 0) {
+				printf("avail update failed: %s\n", snd_strerror(err));
+				goto END_OF_THREAD;
+				//return err;
+			}
+			first = 1;
+			continue;
+		}
+		if (avail < period_size) {
+			if (first) {
+				first = 0;
+				err = snd_pcm_start(handle);
+				if (err < 0) {
+					printf("Start error: %s\n", snd_strerror(err));
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				err = snd_pcm_wait(handle, -1);
+				if (err < 0) {
+					if ((err = xrun_recovery(handle, err)) < 0) {
+						printf("snd_pcm_wait error: %s\n", snd_strerror(err));
+						exit(EXIT_FAILURE);
+					}
+					first = 1;
+				}
+			}
+			continue;
+		}
+		
+		size = period_size;
+		while (size > 0) {
+			frames = size;
+			err = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+			if (err < 0) {
+				if ((err = xrun_recovery(handle, err)) < 0) {
+					printf("MMAP begin avail error: %s\n", snd_strerror(err));
+					exit(EXIT_FAILURE);
+				}
+				first = 1;
+			}
+
+			//	Call MSGF
+			pthread_mutex_lock( inf->mutexHandle );
+			generate_wave(my_areas, offset, frames, &phase);
+			pthread_mutex_unlock( inf->mutexHandle );			
+			
+			commitres = snd_pcm_mmap_commit(handle, offset, frames);
+			if (commitres < 0 || (snd_pcm_uframes_t)commitres != frames) {
+				if ((err = xrun_recovery(handle, commitres >= 0 ? -EPIPE : commitres)) < 0) {
+					printf("MMAP commit error: %s\n", snd_strerror(err));
+					exit(EXIT_FAILURE);
+				}
+				first = 1;
+			}
+			size -= frames;
+		}
+	}
+
+END_OF_THREAD:
+	return (void *)NULL;
+}
+//-------------------------------------------------------------------------
+static void inputFromKeyboard( pthread_mutex_t* mutex )
+{
+	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0;
+	unsigned char msg[3];
+	int key;
+	
+	while (( key = getchar()) != -1 ){
+		msg[0] = 0x90; msg[1] = 0;
+		switch (key){
+			case 'c': msg[1] = 0x3c; c?(c=0,msg[2]=0):(c=1,msg[2]=0x7f); break;
+			case 'd': msg[1] = 0x3e; d?(d=0,msg[2]=0):(d=1,msg[2]=0x7f); break;
+			case 'e': msg[1] = 0x40; e?(e=0,msg[2]=0):(e=1,msg[2]=0x7f); break;
+			case 'f': msg[1] = 0x41; f?(f=0,msg[2]=0):(f=1,msg[2]=0x7f); break;
+			case 'g': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); break;
+			case 'a': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); break;
+			case 'b': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); break;
+			default: break;
+		}
+		if ( msg[1] != 0 ){
+			//	Call MSGF
+			pthread_mutex_lock( mutex );
+			raspiaudio_Message( msg, 3 );
+			pthread_mutex_unlock( mutex );
+		}
+	}
+};
+//-------------------------------------------------------------------------
+static int direct_loop(snd_pcm_t *handle,
+					   signed short *samples ATTRIBUTE_UNUSED,
+					   snd_pcm_channel_area_t *areas ATTRIBUTE_UNUSED)
+{
+	int	rtn;
+	THREAD_INFO thInfo;
+	pthread_mutex_t	mutex;
+	pthread_t		threadId;
+
+	//	Initialize Variables
+	thInfo.alsaHandle = handle;
+	thInfo.mutexHandle = &mutex;
+	
+	//	Create Thread
+	pthread_mutex_init(&mutex,NULL);
+	rtn = pthread_create( &threadId, NULL, audioThread, (void *)&thInfo );
+	if (rtn != 0) {
+		fprintf(stderr, "pthread_create() failed for %d.", rtn);
+		exit(EXIT_FAILURE);
+	}
+
+	//	Get MIDI Command
+	inputFromKeyboard( &mutex );
+
+	//	End of Thread
+	pthread_join( &threadId, NULL );
+}
+
 
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only using mmap_write functions
@@ -889,11 +1045,7 @@ static void help(void)
 //-------------------------------------------------------------------------
 //			MAIN
 //-------------------------------------------------------------------------
-#ifndef XCODE_CHK
 int main(int argc, char *argv[])
-#else
-void test2( int argc, char *argv[])
-#endif
 {
 	struct option long_option[] =
 	{
@@ -1058,7 +1210,7 @@ void test2( int argc, char *argv[])
 
 	//--------------------------------------------------------
 	//	Send MIDI Message to MSGF
-	if (( method != 2 ) && ( method != 3 )){
+	if (( method < 2 ) || ( method > 5 )){
 		unsigned char msg[3] = { 0x90, 0x3c, 0x7f };
 		raspiaudio_Message( msg, 3 );
 	}
