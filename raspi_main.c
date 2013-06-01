@@ -372,7 +372,7 @@ END_OF_THREAD:
 //-------------------------------------------------------------------------
 static void inputFromKeyboard( pthread_mutex_t* mutex )
 {
-	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0;
+	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
 	unsigned char msg[3];
 	int key;
 	
@@ -386,6 +386,7 @@ static void inputFromKeyboard( pthread_mutex_t* mutex )
 			case 'g': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); break;
 			case 'a': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); break;
 			case 'b': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); break;
+			case 'q': msg[0] = 0xc0; q?(q=0,msg[1]=0):(q=1,msg[1]=0x7f); break;
 			default: break;
 		}
 		if ( msg[1] != 0 ){
