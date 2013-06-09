@@ -6,7 +6,7 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
-#import <sys/time.h>
+#include <sys/time.h>
 #include "raspi_audioout.h"
 
 #include "msgf_audio_buffer.h"
