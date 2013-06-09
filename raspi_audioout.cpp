@@ -6,6 +6,7 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
+#import <sys/time.h>
 #include "raspi_audioout.h"
 
 #include "msgf_audio_buffer.h"
@@ -35,8 +36,16 @@ void raspiaudio_End( void )
 //--------------------------------------------------------
 //		Audio Process
 //--------------------------------------------------------
+#define		SMPL_RATE				44100
+#define		BEGIN_TRUNCATE			50	//	percent
+//--------------------------------------------------------
 int	raspiaudio_Process( int16_t* buf, int bufsize )
 {
+	struct timeval ts;
+	struct timeval te;
+	long	startTime, endTime, execTime;
+	gettimeofday(&ts, NULL);
+
 	msgf::TgAudioBuffer	abuf;						//	MSGF IF
 	msgf::Msgf*	tg = reinterpret_cast<msgf::Msgf*>(au.GetTg());
 	abuf.obtainAudioBuffer(bufsize);				//	MSGF IF
@@ -49,6 +58,17 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 	
 	abuf.releaseAudioBuffer();						//	MSGF IF
 
+	//	Time Measurement
+	gettimeofday(&te, NULL);
+	startTime = ts.tv_sec * 1000 + ts.tv_usec/1000;
+	endTime = te.tv_sec * 1000 + te.tv_usec/1000;
+	execTime = endTime - startTime;
+	
+	//	Reduce Resource
+	if ( (bufsize*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
+		tg->reduceResource();
+	}
+	
 	return 1;
 }
 
