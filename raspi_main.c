@@ -275,6 +275,9 @@ struct THREAD_INFO {
 	pthread_mutex_t*	mutexHandle;
 };
 //-------------------------------------------------------------------------
+#define		SMPL_RATE				44100
+#define		BEGIN_TRUNCATE			50	//	percent
+//-------------------------------------------------------------------------
 static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* phase, int* first )
 {
 	const snd_pcm_channel_area_t *my_areas;
@@ -282,6 +285,12 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 	snd_pcm_sframes_t	commitres;
 	int err;
 
+	//	Time Measurement
+	struct	timeval ts;
+	struct	timeval te;
+	long	startTime, endTime, execTime;
+	gettimeofday(&ts, NULL);
+	
 	size = period_size;
 	while (size > 0) {
 		frames = size;
@@ -308,6 +317,21 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 			*first = 1;
 		}
 		size -= frames;
+	}
+
+	//	Time Measurement
+	gettimeofday(&te, NULL);
+	startTime = ts.tv_sec * 1000 + ts.tv_usec/1000;
+	endTime = te.tv_sec * 1000 + te.tv_usec/1000;
+	execTime = endTime - startTime;
+	
+	//	Reduce Resource
+	if ( (bufsize*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
+		pthread_mutex_lock( inf->mutexHandle );
+		tg->reduceResource();
+		pthread_mutex_unlock( inf->mutexHandle );
+
+		std::cout << "processing time = " << execTime << "\n";
 	}
 }
 //-------------------------------------------------------------------------
@@ -372,7 +396,7 @@ static void* audioThread( void* thInfo )
 			continue;
 		}
 
-		writeAudioToDriver( inf, handle, &phase, &first )
+		writeAudioToDriver( inf, handle, &phase, &first );
 	}
 	
 END_OF_THREAD:
