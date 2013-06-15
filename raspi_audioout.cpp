@@ -6,6 +6,7 @@
 //  Copyright (c) 2013年 長谷部 雅彦. All rights reserved.
 //
 
+#include <iostream>
 #include <sys/time.h>
 #include "raspi_audioout.h"
 
@@ -67,6 +68,7 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 	//	Reduce Resource
 	if ( (bufsize*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
 		tg->reduceResource();
+		std::cout << "processing time = " << execTime << "¥n";
 	}
 	
 	return 1;

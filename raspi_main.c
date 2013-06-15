@@ -270,6 +270,42 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only
 //-------------------------------------------------------------------------
+static void writeAudioToDriver( snd_pcm_t* handle, double* phase, int* first )
+{
+	const snd_pcm_channel_area_t *my_areas;
+	snd_pcm_uframes_t	offset, frames, size;
+	snd_pcm_sframes_t	commitres;
+	int err;
+
+	size = period_size;
+	while (size > 0) {
+		frames = size;
+		err = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+		if (err < 0) {
+			if ((err = xrun_recovery(handle, err)) < 0) {
+				printf("MMAP begin avail error: %s\n", snd_strerror(err));
+				exit(EXIT_FAILURE);
+			}
+			*first = 1;
+		}
+	
+		//	Call MSGF
+		pthread_mutex_lock( inf->mutexHandle );
+		generate_wave(my_areas, offset, frames, &phase);
+		pthread_mutex_unlock( inf->mutexHandle );
+
+		commitres = snd_pcm_mmap_commit(handle, offset, frames);
+		if (commitres < 0 || (snd_pcm_uframes_t)commitres != frames) {
+			if ((err = xrun_recovery(handle, commitres >= 0 ? -EPIPE : commitres)) < 0) {
+				printf("MMAP commit error: %s\n", snd_strerror(err));
+				exit(EXIT_FAILURE);
+			}
+			*first = 1;
+		}
+		size -= frames;
+	}
+}
+//-------------------------------------------------------------------------
 struct THREAD_INFO {
 	snd_pcm_t*			alsaHandle;
 	pthread_mutex_t*	mutexHandle;
@@ -280,9 +316,7 @@ static void* audioThread( void* thInfo )
 	THREAD_INFO* inf = (THREAD_INFO*)thInfo;
 	snd_pcm_t* handle = inf->alsaHandle;
 	double phase = 0;
-	const snd_pcm_channel_area_t *my_areas;
-	snd_pcm_uframes_t offset, frames, size;
-	snd_pcm_sframes_t avail, commitres;
+	snd_pcm_sframes_t avail;
 	snd_pcm_state_t state;
 	int err, first = 1;
 	
@@ -316,6 +350,7 @@ static void* audioThread( void* thInfo )
 			first = 1;
 			continue;
 		}
+
 		if (avail < period_size) {
 			if (first) {
 				first = 0;
@@ -336,34 +371,8 @@ static void* audioThread( void* thInfo )
 			}
 			continue;
 		}
-		
-		size = period_size;
-		while (size > 0) {
-			frames = size;
-			err = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
-			if (err < 0) {
-				if ((err = xrun_recovery(handle, err)) < 0) {
-					printf("MMAP begin avail error: %s\n", snd_strerror(err));
-					exit(EXIT_FAILURE);
-				}
-				first = 1;
-			}
-			
-			//	Call MSGF
-			pthread_mutex_lock( inf->mutexHandle );
-			generate_wave(my_areas, offset, frames, &phase);
-			pthread_mutex_unlock( inf->mutexHandle );
-			
-			commitres = snd_pcm_mmap_commit(handle, offset, frames);
-			if (commitres < 0 || (snd_pcm_uframes_t)commitres != frames) {
-				if ((err = xrun_recovery(handle, commitres >= 0 ? -EPIPE : commitres)) < 0) {
-					printf("MMAP commit error: %s\n", snd_strerror(err));
-					exit(EXIT_FAILURE);
-				}
-				first = 1;
-			}
-			size -= frames;
-		}
+
+		writeAudioToDriver( handle, &phase, &first )
 	}
 	
 END_OF_THREAD:
