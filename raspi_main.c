@@ -26,10 +26,10 @@
 //-------------------------------------------------------------------------
 static char *device = "plughw:0,0";                     /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16;    /* sample format */
-static unsigned int rate = 44100;                       /* stream rate */
+static unsigned int samplingRate = 44100;                       /* stream rate */
 static unsigned int channels = 1;                       /* count of channels */
-static unsigned int buffer_time = 100000;               /* ring buffer length in us */
-static unsigned int period_time = 20000;               /* period time in us */
+static unsigned int buffer_time = 120000;               /* ring buffer length in us */
+static unsigned int period_time = 30000;               /* period time in us */
 static double freq = 440;                               /* sinusoidal wave frequency in Hz */
 static int verbose = 0;                                 /* verbose flag */
 static int resample = 1;                                /* enable alsa-lib resampling */
@@ -146,14 +146,14 @@ static int set_hwparams(snd_pcm_t *handle,
 	}
 	
 	/* set the stream rate */
-	rrate = rate;
+	rrate = samplingRate;
 	err = snd_pcm_hw_params_set_rate_near(handle, params, &rrate, 0);
 	if (err < 0) {
-		printf("Rate %iHz not available for playback: %s\n", rate, snd_strerror(err));
+		printf("Rate %iHz not available for playback: %s\n", samplingRate, snd_strerror(err));
 		return err;
 	}
-	if (rrate != rate) {
-		printf("Rate doesn't match (requested %iHz, get %iHz)\n", rate, err);
+	if (rrate != samplingRate) {
+		printf("Rate doesn't match (requested %iHz, get %iHz)\n", samplingRate, err);
 		return -EINVAL;
 	}
 	
@@ -268,15 +268,14 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 }
 
 //-------------------------------------------------------------------------
-//		Transfer method - direct write only
+//		Audio Theread  /  Transfer method - direct write only
 //-------------------------------------------------------------------------
 struct THREAD_INFO {
 	snd_pcm_t*			alsaHandle;
 	pthread_mutex_t*	mutexHandle;
 };
 //-------------------------------------------------------------------------
-#define		SMPL_RATE				44100
-#define		BEGIN_TRUNCATE			50	//	percent
+#define		BEGIN_TRUNCATE			80	//	percent
 //-------------------------------------------------------------------------
 static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* phase, int* first )
 {
@@ -326,7 +325,7 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 	execTime = endTime - startTime;
 	
 	//	Reduce Resource
-	if ( (period_size*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
+	if ( (period_size*BEGIN_TRUNCATE*1000)/(samplingRate*100) < execTime  ){
 		pthread_mutex_lock( inf->mutexHandle );
 		raspiaudio_ReduceResource();
 		pthread_mutex_unlock( inf->mutexHandle );
@@ -402,6 +401,9 @@ static void* audioThread( void* thInfo )
 END_OF_THREAD:
 	return (void *)NULL;
 }
+
+//-------------------------------------------------------------------------
+//		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
 static void inputFromKeyboard( pthread_mutex_t* mutex )
 {
@@ -495,7 +497,7 @@ int main(int argc, char *argv[])
 	{
 		{"help", 0, NULL, 'h'},
 		{"device", 1, NULL, 'D'},
-		{"rate", 1, NULL, 'r'},
+		{"samplingRate", 1, NULL, 'r'},
 		{"channels", 1, NULL, 'c'},
 		{"frequency", 1, NULL, 'f'},
 		{"buffer", 1, NULL, 'b'},
@@ -530,9 +532,9 @@ int main(int argc, char *argv[])
 				device = strdup(optarg);
 				break;
 			case 'r':
-				rate = atoi(optarg);
-				rate = rate < 4000 ? 4000 : rate;
-				rate = rate > 196000 ? 196000 : rate;
+				samplingRate = atoi(optarg);
+				samplingRate = samplingRate < 4000 ? 4000 : samplingRate;
+				samplingRate = samplingRate > 196000 ? 196000 : samplingRate;
 				break;
 			case 'c':
 				channels = atoi(optarg);
@@ -596,7 +598,7 @@ int main(int argc, char *argv[])
 	}
 	
 	printf("Playback device is %s\n", device);
-	printf("Stream parameters are %iHz, %s, %i channels\n", rate, snd_pcm_format_name(format), channels);
+	printf("Stream parameters are %iHz, %s, %i channels\n", samplingRate, snd_pcm_format_name(format), channels);
 	printf("Sine wave rate is %.4fHz\n", freq);
 	
 	if ((err = snd_pcm_open(&handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
