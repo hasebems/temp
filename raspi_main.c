@@ -270,6 +270,11 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only
 //-------------------------------------------------------------------------
+struct THREAD_INFO {
+	snd_pcm_t*			alsaHandle;
+	pthread_mutex_t*	mutexHandle;
+};
+//-------------------------------------------------------------------------
 static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* phase, int* first )
 {
 	const snd_pcm_channel_area_t *my_areas;
@@ -305,11 +310,6 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 		size -= frames;
 	}
 }
-//-------------------------------------------------------------------------
-struct THREAD_INFO {
-	snd_pcm_t*			alsaHandle;
-	pthread_mutex_t*	mutexHandle;
-};
 //-------------------------------------------------------------------------
 static void* audioThread( void* thInfo )
 {
