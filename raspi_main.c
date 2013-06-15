@@ -270,7 +270,7 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 //-------------------------------------------------------------------------
 //		Transfer method - direct write only
 //-------------------------------------------------------------------------
-static void writeAudioToDriver( snd_pcm_t* handle, double* phase, int* first )
+static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* phase, int* first )
 {
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t	offset, frames, size;
@@ -291,7 +291,7 @@ static void writeAudioToDriver( snd_pcm_t* handle, double* phase, int* first )
 	
 		//	Call MSGF
 		pthread_mutex_lock( inf->mutexHandle );
-		generate_wave(my_areas, offset, frames, &phase);
+		generate_wave(my_areas, offset, frames, phase);
 		pthread_mutex_unlock( inf->mutexHandle );
 
 		commitres = snd_pcm_mmap_commit(handle, offset, frames);
@@ -372,7 +372,7 @@ static void* audioThread( void* thInfo )
 			continue;
 		}
 
-		writeAudioToDriver( handle, &phase, &first )
+		writeAudioToDriver( inf, handle, &phase, &first )
 	}
 	
 END_OF_THREAD:
