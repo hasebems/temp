@@ -18,6 +18,7 @@ extern "C" {
 	void raspiaudio_Init( void );
 	void raspiaudio_End( void );
 	int	raspiaudio_Process( int16_t* buf, int bufsize );
+	void raspiaudio_ReduceResource( void );
 	int	raspiaudio_Message( unsigned char* message, int msgsize );
 #if __cplusplus
 }

@@ -326,12 +326,12 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 	execTime = endTime - startTime;
 	
 	//	Reduce Resource
-	if ( (bufsize*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
+	if ( (period_size*BEGIN_TRUNCATE*1000)/(SMPL_RATE*100) < execTime  ){
 		pthread_mutex_lock( inf->mutexHandle );
-		tg->reduceResource();
+		raspiaudio_ReduceResource();
 		pthread_mutex_unlock( inf->mutexHandle );
 
-		std::cout << "processing time = " << execTime << "\n";
+		printf("processing time = %d\n", execTime);
 	}
 }
 //-------------------------------------------------------------------------

@@ -54,6 +54,15 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 }
 
 //--------------------------------------------------------
+//		Reduce Resource
+//--------------------------------------------------------
+void raspiaudio_ReduceResource( void )
+{
+	msgf::Msgf*	tg = reinterpret_cast<msgf::Msgf*>(au.GetTg());
+	tg->reduceResource();
+}
+
+//--------------------------------------------------------
 //		Receive Message
 //--------------------------------------------------------
 int	raspiaudio_Message( unsigned char* message, int msgsize )
