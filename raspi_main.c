@@ -541,7 +541,10 @@ void initGPIO( void )
 	char gpiodrv[64];
 
 	fd_exp = open("/sys/class/gpio/export", O_WRONLY );
-	if ( fd_exp < 0 ) exit(EXIT_FAILURE);
+	if ( fd_exp < 0 ){
+		printf("Can't open GPIO");
+		exit(EXIT_FAILURE);
+	}
 	write(fd_exp,"2",2);
 	write(fd_exp,"3",2);
 	write(fd_exp,"4",2);
@@ -550,7 +553,10 @@ void initGPIO( void )
 	for ( i=2; i<5; i++ ){
 		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
 		fd_dir = open(gpiodrv,O_RDWR);
-		if ( fd_dir < 0 ) exit(EXIT_FAILURE);
+		if ( fd_dir < 0 ){
+			printf("Can't set direction");
+			exit(EXIT_FAILURE);
+		}
 		write(fd_dir,"in",3);
 		close(fd_dir);
 	}
