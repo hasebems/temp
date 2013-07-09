@@ -38,6 +38,7 @@ static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
 
+
 //-------------------------------------------------------------------------
 //		Generate Wave : MSGF
 //-------------------------------------------------------------------------
@@ -405,6 +406,47 @@ END_OF_THREAD:
 //-------------------------------------------------------------------------
 //		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
+#define		MAX_SW_NUM			3
+//-------------------------------------------------------------------------
+static void inputFromTouchSw( pthread_mutex_t* mutex )
+{
+	unsigned char msg[3];
+	int 	i;
+	char	gpioPath[64];
+	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM], swOld[MAX_SW_NUM] = {1,1,1};
+
+	while (1){
+		for (i=0; i<MAX_SW_NUM; i++){
+			sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+2);
+			fd_in[i] = open(gpioPath,O_RDWR);
+			if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
+		}
+		for (i=0; i<MAX_SW_NUM; i++){
+			read(fd_in[i], swNew[i], 2);
+		}
+		for (i=0; i<MAX_SW_NUM; i++){
+			close(fd_in[i]);
+		}
+		
+		for (i=0; i<MAX_SW_NUM; i++ ){
+			if ( swNew[i] != swOld[i] ){
+				if ( !swNew[i] ){
+					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0x7f;
+				}
+				else {
+					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0;
+				}
+				//	Call MSGF
+				pthread_mutex_lock( mutex );
+				raspiaudio_Message( msg, 3 );
+				pthread_mutex_unlock( mutex );
+
+				swOld[i] = swNew[i];
+			}
+		}
+	}
+};
+//-------------------------------------------------------------------------
 static void inputFromKeyboard( pthread_mutex_t* mutex )
 {
 	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
@@ -454,7 +496,8 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	}
 	
 	//	Get MIDI Command
-	inputFromKeyboard( &mutex );
+	//inputFromKeyboard( &mutex );
+	inputFromTouchSw( &mutex );
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );
@@ -487,6 +530,29 @@ static void help(void)
 			printf(" %s", s);
 	}
 	printf("\n");
+}
+//-------------------------------------------------------------------------
+//			Initialize GPIO
+//-------------------------------------------------------------------------
+void initGPIO( void )
+{
+	int	fd_exp, fd_dir, i;
+	char gpiodrv[64];
+
+	fd_exp = open("/sys/class/gpio/export", O_WRONLY );
+	if ( fd_exp < 0 ) exit(EXIT_FAILURE);
+	write(fd_exp,"2",2);
+	write(fd_exp,"3",2);
+	write(fd_exp,"4",2);
+	close(fd_exp);
+	
+	for ( i=2; i<5; i++ ){
+		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
+		fd_dir = open(gpiodrv,O_RDWR);
+		if ( fd_dir < 0 ) exit(EXIT_FAILURE);
+		write(fd_dir,"in",3);
+		close(fd_dir);
+	}
 }
 //-------------------------------------------------------------------------
 //			MAIN
@@ -605,7 +671,7 @@ int main(int argc, char *argv[])
 		printf("Playback open error: %s\n", snd_strerror(err));
 		return 0;
 	}
-	
+
 	//--------------------------------------------------------
 	//	Call Init MSGF
 	raspiaudio_Init();
@@ -632,7 +698,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	
-	//	create imfomation by snd_pcm_channel_area_t
+	//	create information by snd_pcm_channel_area_t
 	areas = (snd_pcm_channel_area_t *)calloc(channels, sizeof(snd_pcm_channel_area_t));
 	if (areas == NULL) {
 		printf("No enough memory\n");
@@ -643,7 +709,10 @@ int main(int argc, char *argv[])
 		areas[chn].first = chn * snd_pcm_format_physical_width(format);
 		areas[chn].step = channels * snd_pcm_format_physical_width(format);
 	}
-	
+
+	//	GPIO
+	initGPIO();
+
 	//--------------------------------------------------------
 	//	Main Loop
 	err = soundGenerateLoop(handle);
