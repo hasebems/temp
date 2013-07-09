@@ -412,7 +412,7 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 {
 	unsigned char msg[3];
 	int 	i;
-	char	gpioPath[64];
+	char	gpioPath[64], value[4];
 	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM], swOld[MAX_SW_NUM] = {1,1,1};
 
 	while (1){
@@ -422,7 +422,8 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 			if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
 		}
 		for (i=0; i<MAX_SW_NUM; i++){
-			read(fd_in[i], swNew[i], 2);
+			read(fd_in[i], value, 2);
+			printf("%c",value);
 		}
 		for (i=0; i<MAX_SW_NUM; i++){
 			close(fd_in[i]);
