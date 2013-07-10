@@ -427,7 +427,7 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 		for (i=0; i<MAX_SW_NUM; i++){
 			char value[2];
 			read(fd_in[i], value, 2);
-			if ( value == '0' ) swNew[i] = 0;
+			if ( value[0] == '0' ) swNew[i] = 0;
 			else swNew[i] = 1;
 		}
 		for (i=0; i<MAX_SW_NUM; i++){
