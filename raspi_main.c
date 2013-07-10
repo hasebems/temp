@@ -15,6 +15,7 @@
 #include <getopt.h>
 #include <sys/time.h>
 #include <math.h>
+#include <fcntl.h>
 
 #include <alsa/asoundlib.h>
 #include <pthread.h>
@@ -288,7 +289,7 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 	//	Time Measurement
 	struct	timeval ts;
 	struct	timeval te;
-	long	startTime, endTime, execTime;
+	long	startTime, endTime, execTime, latency, limit;
 	gettimeofday(&ts, NULL);
 	
 	size = period_size;
@@ -324,14 +325,16 @@ static void writeAudioToDriver( THREAD_INFO* inf, snd_pcm_t* handle, double* pha
 	startTime = ts.tv_sec * 1000 + ts.tv_usec/1000;
 	endTime = te.tv_sec * 1000 + te.tv_usec/1000;
 	execTime = endTime - startTime;
-	
+	latency = period_size*1000/samplingRate;
+	limit = period_size*BEGIN_TRUNCATE*10/samplingRate;
+
 	//	Reduce Resource
-	if ( (period_size*BEGIN_TRUNCATE*1000)/(samplingRate*100) < execTime  ){
+	if ( limit < execTime ){
 		pthread_mutex_lock( inf->mutexHandle );
 		raspiaudio_ReduceResource();
 		pthread_mutex_unlock( inf->mutexHandle );
 
-		printf("processing time = %d\n", execTime);
+		printf("processing time = %d/%d[msec]\n", execTime, latency);
 	}
 }
 //-------------------------------------------------------------------------
@@ -412,7 +415,7 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 {
 	unsigned char msg[3];
 	int 	i;
-	char	gpioPath[64], value[4];
+	char	gpioPath[64];
 	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM], swOld[MAX_SW_NUM] = {1,1,1};
 
 	while (1){
@@ -422,8 +425,10 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 			if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
 		}
 		for (i=0; i<MAX_SW_NUM; i++){
+			char value[2];
 			read(fd_in[i], value, 2);
-			printf("%c",value);
+			if ( value == '0' ) swNew[i] = 0;
+			else swNew[i] = 1;
 		}
 		for (i=0; i<MAX_SW_NUM; i++){
 			close(fd_in[i]);
@@ -433,9 +438,11 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 			if ( swNew[i] != swOld[i] ){
 				if ( !swNew[i] ){
 					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0x7f;
+					printf("Now KeyOn of %d\n",i);
 				}
 				else {
 					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0;
+					printf("Now KeyOff of %d\n",i);
 				}
 				//	Call MSGF
 				pthread_mutex_lock( mutex );
@@ -542,7 +549,7 @@ void initGPIO( void )
 
 	fd_exp = open("/sys/class/gpio/export", O_WRONLY );
 	if ( fd_exp < 0 ){
-		printf("Can't open GPIO");
+		printf("Can't open GPIO\n");
 		exit(EXIT_FAILURE);
 	}
 	write(fd_exp,"2",2);
@@ -554,7 +561,7 @@ void initGPIO( void )
 		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
 		fd_dir = open(gpiodrv,O_RDWR);
 		if ( fd_dir < 0 ){
-			printf("Can't set direction");
+			printf("Can't set direction\n");
 			exit(EXIT_FAILURE);
 		}
 		write(fd_dir,"in",3);
