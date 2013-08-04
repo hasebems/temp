@@ -20,6 +20,9 @@
 #include <alsa/asoundlib.h>
 #include <pthread.h>
 
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
+
 #include	"raspi_cwrap.h"
 
 //-------------------------------------------------------------------------
@@ -38,6 +41,9 @@ static int period_event = 0;                            /* produce poll event af
 static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
+
+static unsigned char PRESSURE_SENSOR_ADDRESS			0x5b
+static int prsDscript;       // file discripter
 
 
 //-------------------------------------------------------------------------
@@ -409,6 +415,33 @@ END_OF_THREAD:
 //-------------------------------------------------------------------------
 //		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
+static void inputFromI2c( pthread_mutex_t* mutex )
+{
+	unsigned char rdDt, dt[3];
+	float	data;
+
+	while (1){
+		
+		writeI2c( 0x21, 0x01 );	//	Start One shot
+		rdDt = readI2c( 0x27 );
+		if ( rdDt & 0x02 ){
+			dt[0] = readI2c( 0x28 );
+			dt[1] = readI2c( 0x29 );
+			dt[2] = readI2c( 0x2a );
+			data = (dt[2]<<16)|(dt[1]<<8)|dt[0];
+			data = data/4096;
+			printf("Pressure:%6f\n",data);
+		}
+		if ( rdDt & 0x01 ){
+			dt[0] = readI2c( 0x2b );
+			dt[1] = readI2c( 0x2c );
+			data = (dt[1]<<8)|dt[0];
+			data = 42.5 - data/480;
+			printf("Temparature:%4f\n",data);
+		}
+	}
+}
+//-------------------------------------------------------------------------
 #define		MAX_SW_NUM			3
 //-------------------------------------------------------------------------
 static void inputFromTouchSw( pthread_mutex_t* mutex )
@@ -505,12 +538,101 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	
 	//	Get MIDI Command
 	//inputFromKeyboard( &mutex );
-	inputFromTouchSw( &mutex );
+	//inputFromTouchSw( &mutex );
+	inputFromI2c( &mutex );
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );
 }
+//-------------------------------------------------------------------------
+//			Initialize GPIO
+//-------------------------------------------------------------------------
+void initGPIO( void )
+{
+	int	fd_exp, fd_dir, i;
+	char gpiodrv[64];
+	
+	fd_exp = open("/sys/class/gpio/export", O_WRONLY );
+	if ( fd_exp < 0 ){
+		printf("Can't open GPIO\n");
+		exit(EXIT_FAILURE);
+	}
+	write(fd_exp,"2",2);
+	write(fd_exp,"3",2);
+	write(fd_exp,"4",2);
+	close(fd_exp);
+	
+	for ( i=2; i<5; i++ ){
+		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
+		fd_dir = open(gpiodrv,O_RDWR);
+		if ( fd_dir < 0 ){
+			printf("Can't set direction\n");
+			exit(EXIT_FAILURE);
+		}
+		write(fd_dir,"in",3);
+		close(fd_dir);
+	}
+}
+//-------------------------------------------------------------------------
+//			I2c Device Access Functions
+//-------------------------------------------------------------------------
+void writeI2c( unsigned char adrs, unsigned char data )
+{
+	unsigned char buf[2];
+	
+	buf[0] = adrs;									// Commands for performing a ranging
+	buf[1] = data;
+	
+	if ((write(prsDscript, buf, 2)) != 2) {			// Write commands to the i2c port
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}	
+}
+//-------------------------------------------------------------------------
+unsigned char readI2c( unsigned char adrs )
+{
+	unsigned char buf[2];
+	buf[0] = adrs;									// This is the register we wish to read from
+	
+	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}
 
+	if (read(prsDscript, buf, 1) != 1) {					// Read back data into buf[]
+		printf("Unable to read from slave\n");
+		exit(1);
+	}
+
+	return buf[0];
+}
+//-------------------------------------------------------------------------
+void initI2c( void )
+{
+    char	*fileName = "/dev/i2c-1"; // I2C Drive File name
+    int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
+	unsigned char buf;
+	
+	//	Pressure Sensor
+    printf("***** start i2c test program *****\n");
+	
+    // I2CポートをRead/Write属性でオープン。
+    if ((prsDscript = open(fileName, O_RDWR)) < 0){
+        printf("Faild to open i2c port\n");
+        exit(1);
+    }
+	
+    // Set Address
+    if (ioctl(prsDscript, I2C_SLAVE, address) < 0){
+        printf("Unable to get bus access to talk to slave\n");
+        exit(1);
+    }
+
+	//	Init Parameter
+	writeI2c( 0x10, 0x7A );	//	Resolution
+	
+	writeI2c( 0x20, 0x80 );	//	Power On	
+}
 //-------------------------------------------------------------------------
 //			HELP
 //-------------------------------------------------------------------------
@@ -540,38 +662,9 @@ static void help(void)
 	printf("\n");
 }
 //-------------------------------------------------------------------------
-//			Initialize GPIO
+//			Option Command
 //-------------------------------------------------------------------------
-void initGPIO( void )
-{
-	int	fd_exp, fd_dir, i;
-	char gpiodrv[64];
-
-	fd_exp = open("/sys/class/gpio/export", O_WRONLY );
-	if ( fd_exp < 0 ){
-		printf("Can't open GPIO\n");
-		exit(EXIT_FAILURE);
-	}
-	write(fd_exp,"2",2);
-	write(fd_exp,"3",2);
-	write(fd_exp,"4",2);
-	close(fd_exp);
-	
-	for ( i=2; i<5; i++ ){
-		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
-		fd_dir = open(gpiodrv,O_RDWR);
-		if ( fd_dir < 0 ){
-			printf("Can't set direction\n");
-			exit(EXIT_FAILURE);
-		}
-		write(fd_dir,"in",3);
-		close(fd_dir);
-	}
-}
-//-------------------------------------------------------------------------
-//			MAIN
-//-------------------------------------------------------------------------
-int main(int argc, char *argv[])
+static int optionCommand(int morehelp)
 {
 	struct option long_option[] =
 	{
@@ -588,18 +681,7 @@ int main(int argc, char *argv[])
 		{"pevent", 1, NULL, 'e'},
 		{NULL, 0, NULL, 0},
 	};
-	
-	snd_pcm_t *handle;
-	int err, morehelp;
-	snd_pcm_hw_params_t *hwparams;
-	snd_pcm_sw_params_t *swparams;
-	signed short *samples;
-	unsigned int chn;
-	snd_pcm_channel_area_t *areas;
-	snd_pcm_hw_params_alloca(&hwparams);
-	snd_pcm_sw_params_alloca(&swparams);
-	morehelp = 0;
-	
+
 	while (1) {
 		int c;
 		if ((c = getopt_long(argc, argv, "hD:r:c:f:b:p:m:o:vne", long_option, NULL)) < 0)
@@ -663,8 +745,30 @@ int main(int argc, char *argv[])
 			case 'e':
 				period_event = 1;
 				break;
+			default: break;
 		}
 	}
+	return morehelp;
+}
+//-------------------------------------------------------------------------
+//			MAIN
+//-------------------------------------------------------------------------
+int main(int argc, char *argv[])
+{
+	snd_pcm_t *handle;
+	int err, morehelp;
+	snd_pcm_hw_params_t *hwparams;
+	snd_pcm_sw_params_t *swparams;
+	signed short *samples;
+	unsigned int chn;
+	snd_pcm_channel_area_t *areas;
+	snd_pcm_hw_params_alloca(&hwparams);
+	snd_pcm_sw_params_alloca(&swparams);
+
+	//--------------------------------------------------------
+	//	Check Initialize Parameter
+	morehelp = 0;
+	morehelp = optionCommand( morehelp );
 	
 	if (morehelp) {
 		help();
@@ -681,16 +785,14 @@ int main(int argc, char *argv[])
 	printf("Stream parameters are %iHz, %s, %i channels\n", samplingRate, snd_pcm_format_name(format), channels);
 	printf("Sine wave rate is %.4fHz\n", freq);
 	
+
+	//--------------------------------------------------------
+	//	ALSA Settings
 	if ((err = snd_pcm_open(&handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
 		printf("Playback open error: %s\n", snd_strerror(err));
 		return 0;
 	}
 
-	//--------------------------------------------------------
-	//	Call Init MSGF
-	raspiaudio_Init();
-	
-	//	ALSA Settings
 	if ((err = set_hwparams(handle, hwparams)) < 0) {
 		printf("Setting of hwparams failed: %s\n", snd_strerror(err));
 		exit(EXIT_FAILURE);
@@ -702,7 +804,7 @@ int main(int argc, char *argv[])
 	
 	printf("Buffer Size is %d\n", buffer_size);
 	printf("Period Size is %d\n", period_size);
-	
+
 	//	reserve memory
 	if (verbose > 0)
 		snd_pcm_dump(handle, output);
@@ -724,8 +826,17 @@ int main(int argc, char *argv[])
 		areas[chn].step = channels * snd_pcm_format_physical_width(format);
 	}
 
-	//	GPIO
+	//--------------------------------------------------------
+	//	Call Init MSGF
+	raspiaudio_Init();	
+
+	//--------------------------------------------------------
+	//	Initialize GPIO
 	initGPIO();
+	
+	//--------------------------------------------------------
+	//	Initialize I2C device
+	initI2c();
 
 	//--------------------------------------------------------
 	//	Main Loop
