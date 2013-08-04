@@ -42,9 +42,10 @@ static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
 
-static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5b;
+static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
 static int prsDscript;       // file discripter
-
+static float pressure = 0;
+static float temperature = 0;
 
 //-------------------------------------------------------------------------
 //			I2c Device Access Functions
@@ -103,7 +104,6 @@ void initI2c( void )
 	
 	//	Init Parameter
 	writeI2c( 0x10, 0x7A );	//	Resolution
-	
 	writeI2c( 0x20, 0x80 );	//	Power On
 }
 //-------------------------------------------------------------------------
@@ -488,15 +488,23 @@ static void inputFromI2c( pthread_mutex_t* mutex )
 			dt[1] = readI2c( 0x29 );
 			dt[2] = readI2c( 0x2a );
 			data = (dt[2]<<16)|(dt[1]<<8)|dt[0];
-			data = data/4096;
-			printf("Pressure:%6f\n",data);
+			data = data*10/4096;
+			data = roundf(data)/10;
+			if ( pressure != data ){
+				printf("Pressure:%f\n",data);
+				pressure = data;
+			}
 		}
 		if ( rdDt & 0x01 ){
 			dt[0] = readI2c( 0x2b );
 			dt[1] = readI2c( 0x2c );
-			data = (dt[1]<<8)|dt[0];
-			data = 42.5 - data/480;
-			printf("Temparature:%4f\n",data);
+			data = 0x10000 - (dt[1]<<8)|dt[0];
+			data = (42.5 - data/480)*10;
+			data = roundf(data)/10;
+			if ( teperature != data ){
+				printf("Temparature:%f\n",data);
+				temperature = data;
+			}
 		}
 	}
 }
@@ -663,7 +671,7 @@ static void help(void)
 //-------------------------------------------------------------------------
 //			Option Command
 //-------------------------------------------------------------------------
-static int optionCommand(int morehelp)
+static int optionCommand(int morehelp, int argc, char *argv[])
 {
 	struct option long_option[] =
 	{
@@ -767,7 +775,7 @@ int main(int argc, char *argv[])
 	//--------------------------------------------------------
 	//	Check Initialize Parameter
 	morehelp = 0;
-	morehelp = optionCommand( morehelp );
+	morehelp = optionCommand( morehelp, argc, argv );
 	
 	if (morehelp) {
 		help();
