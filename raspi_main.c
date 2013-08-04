@@ -42,10 +42,70 @@ static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
 
-static unsigned char PRESSURE_SENSOR_ADDRESS			0x5b
+static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5b;
 static int prsDscript;       // file discripter
 
 
+//-------------------------------------------------------------------------
+//			I2c Device Access Functions
+//-------------------------------------------------------------------------
+void writeI2c( unsigned char adrs, unsigned char data )
+{
+	unsigned char buf[2];
+	
+	buf[0] = adrs;									// Commands for performing a ranging
+	buf[1] = data;
+	
+	if ((write(prsDscript, buf, 2)) != 2) {			// Write commands to the i2c port
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+unsigned char readI2c( unsigned char adrs )
+{
+	unsigned char buf[2];
+	buf[0] = adrs;									// This is the register we wish to read from
+	
+	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}
+	
+	if (read(prsDscript, buf, 1) != 1) {					// Read back data into buf[]
+		printf("Unable to read from slave\n");
+		exit(1);
+	}
+	
+	return buf[0];
+}
+//-------------------------------------------------------------------------
+void initI2c( void )
+{
+    char	*fileName = "/dev/i2c-1"; // I2C Drive File name
+    int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
+	unsigned char buf;
+	
+	//	Pressure Sensor
+    printf("***** start i2c *****\n");
+	
+    // I2CポートをRead/Write属性でオープン。
+    if ((prsDscript = open(fileName, O_RDWR)) < 0){
+        printf("Faild to open i2c port\n");
+        exit(1);
+    }
+	
+    // Set Address
+    if (ioctl(prsDscript, I2C_SLAVE, address) < 0){
+        printf("Unable to get bus access to talk to slave\n");
+        exit(1);
+    }
+	
+	//	Init Parameter
+	writeI2c( 0x10, 0x7A );	//	Resolution
+	
+	writeI2c( 0x20, 0x80 );	//	Power On
+}
 //-------------------------------------------------------------------------
 //		Generate Wave : MSGF
 //-------------------------------------------------------------------------
@@ -107,9 +167,8 @@ static void generate_wave(const snd_pcm_channel_area_t *areas,
 	}
 	free(buf);
 }
-
 //-------------------------------------------------------------------------
-//			Hardware Parameters
+//			ALSA Hardware Parameters
 //-------------------------------------------------------------------------
 static int set_hwparams(snd_pcm_t *handle,
                         snd_pcm_hw_params_t *params)
@@ -202,7 +261,7 @@ static int set_hwparams(snd_pcm_t *handle,
 
 
 //-------------------------------------------------------------------------
-//			Software Parameters
+//			ALSA Software Parameters
 //-------------------------------------------------------------------------
 static int set_swparams(snd_pcm_t *handle, snd_pcm_sw_params_t *swparams)
 {
@@ -572,66 +631,6 @@ void initGPIO( void )
 		write(fd_dir,"in",3);
 		close(fd_dir);
 	}
-}
-//-------------------------------------------------------------------------
-//			I2c Device Access Functions
-//-------------------------------------------------------------------------
-void writeI2c( unsigned char adrs, unsigned char data )
-{
-	unsigned char buf[2];
-	
-	buf[0] = adrs;									// Commands for performing a ranging
-	buf[1] = data;
-	
-	if ((write(prsDscript, buf, 2)) != 2) {			// Write commands to the i2c port
-		printf("Error writing to i2c slave\n");
-		exit(1);
-	}	
-}
-//-------------------------------------------------------------------------
-unsigned char readI2c( unsigned char adrs )
-{
-	unsigned char buf[2];
-	buf[0] = adrs;									// This is the register we wish to read from
-	
-	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
-		printf("Error writing to i2c slave\n");
-		exit(1);
-	}
-
-	if (read(prsDscript, buf, 1) != 1) {					// Read back data into buf[]
-		printf("Unable to read from slave\n");
-		exit(1);
-	}
-
-	return buf[0];
-}
-//-------------------------------------------------------------------------
-void initI2c( void )
-{
-    char	*fileName = "/dev/i2c-1"; // I2C Drive File name
-    int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
-	unsigned char buf;
-	
-	//	Pressure Sensor
-    printf("***** start i2c test program *****\n");
-	
-    // I2CポートをRead/Write属性でオープン。
-    if ((prsDscript = open(fileName, O_RDWR)) < 0){
-        printf("Faild to open i2c port\n");
-        exit(1);
-    }
-	
-    // Set Address
-    if (ioctl(prsDscript, I2C_SLAVE, address) < 0){
-        printf("Unable to get bus access to talk to slave\n");
-        exit(1);
-    }
-
-	//	Init Parameter
-	writeI2c( 0x10, 0x7A );	//	Resolution
-	
-	writeI2c( 0x20, 0x80 );	//	Power On	
 }
 //-------------------------------------------------------------------------
 //			HELP
