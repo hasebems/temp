@@ -69,7 +69,7 @@ unsigned char readI2c( unsigned char adrs )
 	buf[0] = adrs;									// This is the register we wish to read from
 	
 	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
-		printf("Error writing to i2c slave\n");
+		printf("Error writing to i2c slave(read)\n");
 		exit(1);
 	}
 	
@@ -90,7 +90,7 @@ void initI2c( void )
 	//	Pressure Sensor
     printf("***** start i2c *****\n");
 	
-    // I2CポートをRead/Write属性でオープン。
+    // Open I2C port with Read/Write Attribute
     if ((prsDscript = open(fileName, O_RDWR)) < 0){
         printf("Faild to open i2c port\n");
         exit(1);
@@ -501,7 +501,7 @@ static void inputFromI2c( pthread_mutex_t* mutex )
 			data = 0x10000 - (dt[1]<<8)|dt[0];
 			data = (42.5 - data/480)*10;
 			data = roundf(data)/10;
-			if ( teperature != data ){
+			if ( temperature != data ){
 				printf("Temparature:%f\n",data);
 				temperature = data;
 			}
@@ -520,7 +520,7 @@ static void inputFromTouchSw( pthread_mutex_t* mutex )
 
 	while (1){
 		for (i=0; i<MAX_SW_NUM; i++){
-			sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+2);
+			sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+9);
 			fd_in[i] = open(gpioPath,O_RDWR);
 			if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
 		}
@@ -624,12 +624,12 @@ void initGPIO( void )
 		printf("Can't open GPIO\n");
 		exit(EXIT_FAILURE);
 	}
-	write(fd_exp,"2",2);
-	write(fd_exp,"3",2);
-	write(fd_exp,"4",2);
+	write(fd_exp,"9",2);
+	write(fd_exp,"10",2);
+	write(fd_exp,"11",2);
 	close(fd_exp);
 	
-	for ( i=2; i<5; i++ ){
+	for ( i=9; i<12; i++ ){
 		sprintf(gpiodrv,"/sys/class/gpio/gpio%d/direction",i);
 		fd_dir = open(gpiodrv,O_RDWR);
 		if ( fd_dir < 0 ){
