@@ -44,8 +44,8 @@ static snd_output_t *output = NULL;
 
 static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
 static int prsDscript;       // file discripter
-static float pressure = 0;
-static float temperature = 0;
+static int pressure = 0;
+static int temperature = 0;
 
 //-------------------------------------------------------------------------
 //			I2c Device Access Functions
@@ -307,8 +307,6 @@ static int set_swparams(snd_pcm_t *handle, snd_pcm_sw_params_t *swparams)
 	}
 	return 0;
 }
-
-
 //-------------------------------------------------------------------------
 //			Underrun and suspend recovery
 //-------------------------------------------------------------------------
@@ -333,7 +331,6 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 	}
 	return err;
 }
-
 //-------------------------------------------------------------------------
 //		Audio Theread  /  Transfer method - direct write only
 //-------------------------------------------------------------------------
@@ -470,48 +467,73 @@ static void* audioThread( void* thInfo )
 END_OF_THREAD:
 	return (void *)NULL;
 }
+//-------------------------------------------------------------------------
+//		Exclude Atmospheric Pressure
+//-------------------------------------------------------------------------
+int ExcludeAtmospheric( float value )
+{
+	static float yminus1 = 0, xminus1 = 0;
 
+	if ( xminus1 == 0 ){
+		//	at the first time
+		xminus1 = value;
+		return 0;
+	}
+	else {
+		//	Normal State
+		float ret = value - xminus1 + yminus1*0.999;
+		yminus1 = ret;
+		return (int)roundf( ret );
+	}
+}
 //-------------------------------------------------------------------------
 //		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
 static void inputFromI2c( pthread_mutex_t* mutex )
 {
 	unsigned char rdDt, dt[3];
-	float	data;
+	float	fdata;
+	int		idt;
 
 	while (1){
 		
+		
+		//	Pressure Sencer
 		writeI2c( 0x21, 0x01 );	//	Start One shot
 		rdDt = readI2c( 0x27 );
 		if ( rdDt & 0x02 ){
 			dt[0] = readI2c( 0x28 );
 			dt[1] = readI2c( 0x29 );
 			dt[2] = readI2c( 0x2a );
-			data = (dt[2]<<16)|(dt[1]<<8)|dt[0];
-			data = data*10/4096;
-			data = roundf(data)/10;
-			if ( pressure != data ){
-				printf("Pressure:%f\n",data);
-				pressure = data;
+			fdata = (dt[2]<<16)|(dt[1]<<8)|dt[0];
+			fdata = fdata*10/4096;
+			idt = ExcludeAtmospheric( fdata );
+			if (( pressure > idt+1 ) || ( pressure < idt-1 )){
+				printf("Pressure:%d\n",idt);
+				pressure = idt;
 			}
 		}
+
+		//	Temperature
+#if 0
 		if ( rdDt & 0x01 ){
 			dt[0] = readI2c( 0x2b );
 			dt[1] = readI2c( 0x2c );
 			data = 0x10000 - (dt[1]<<8)|dt[0];
 			data = (42.5 - data/480)*10;
-			data = roundf(data)/10;
-			if ( temperature != data ){
-				printf("Temparature:%f\n",data);
-				temperature = data;
+			idt = (int)roundf(data);
+			if (( temperature > idt+1 ) || ( temperature < idt-1 )){
+				printf("Temparature:%d\n",idt);
+				temperature = idt;
 			}
 		}
+#endif
 	}
 }
 //-------------------------------------------------------------------------
 #define		MAX_SW_NUM			3
 //-------------------------------------------------------------------------
-static void inputFromTouchSw( pthread_mutex_t* mutex )
+static void inputFromGPIO( pthread_mutex_t* mutex )
 {
 	unsigned char msg[3];
 	int 	i;
@@ -605,7 +627,7 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	
 	//	Get MIDI Command
 	//inputFromKeyboard( &mutex );
-	//inputFromTouchSw( &mutex );
+	//inputFromGPIO( &mutex );
 	inputFromI2c( &mutex );
 	
 	//	End of Thread
