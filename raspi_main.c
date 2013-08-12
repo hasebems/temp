@@ -483,11 +483,22 @@ int ExcludeAtmospheric( float value )
 		//	Normal State
 		float ret = value - xminus1 + yminus1*0.999;
 		yminus1 = ret;
+		xminus1 = value;
 		return (int)roundf( ret );
 	}
 }
 //-------------------------------------------------------------------------
 //		Original Thread		/	Input Message
+//-------------------------------------------------------------------------
+//	for Pressure Sencer
+#define		PRES_SNCR_START				0x21
+#define		PRES_SNCR_ONE_SHOT			0x01
+#define		PRES_SNCR_RCV_DT_FLG		0x27
+#define		PRES_SNCR_RCV_TMPR			0x01
+#define		PRES_SNCR_RCV_PRES			0x02
+#define		PRES_SNCR_DT_H				0x28
+#define		PRES_SNCR_DT_M				0x29
+#define		PRES_SNCR_DT_L				0x2a
 //-------------------------------------------------------------------------
 static void inputFromI2c( pthread_mutex_t* mutex )
 {
@@ -499,16 +510,17 @@ static void inputFromI2c( pthread_mutex_t* mutex )
 		
 		
 		//	Pressure Sencer
-		writeI2c( 0x21, 0x01 );	//	Start One shot
-		rdDt = readI2c( 0x27 );
-		if ( rdDt & 0x02 ){
-			dt[0] = readI2c( 0x28 );
-			dt[1] = readI2c( 0x29 );
-			dt[2] = readI2c( 0x2a );
+		writeI2c( PRES_SNCR_START, PRES_SNCR_ONE_SHOT );	//	Start One shot
+		rdDt = readI2c( PRES_SNCR_RCV_DT_FLG );
+		if ( rdDt & PRES_SNCR_RCV_PRES ){
+			dt[0] = readI2c( PRES_SNCR_DT_H );
+			dt[1] = readI2c( PRES_SNCR_DT_M );
+			dt[2] = readI2c( PRES_SNCR_DT_L );
 			fdata = (dt[2]<<16)|(dt[1]<<8)|dt[0];
 			fdata = fdata*10/4096;
 			idt = ExcludeAtmospheric( fdata );
 			if (( pressure > idt+1 ) || ( pressure < idt-1 )){
+				//	protect trembling
 				printf("Pressure:%d\n",idt);
 				pressure = idt;
 			}
@@ -516,7 +528,7 @@ static void inputFromI2c( pthread_mutex_t* mutex )
 
 		//	Temperature
 #if 0
-		if ( rdDt & 0x01 ){
+		if ( rdDt & PRES_SNCR_RCV_TMPR ){
 			dt[0] = readI2c( 0x2b );
 			dt[1] = readI2c( 0x2c );
 			data = 0x10000 - (dt[1]<<8)|dt[0];
