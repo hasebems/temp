@@ -15,7 +15,7 @@
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
-
+#include <unistd.h>
 
 //-------------------------------------------------------------------------
 //			Variables
@@ -53,7 +53,7 @@ void quitI2c( void )
      printf("***** quit i2c *****\n");
 	
     // Open I2C port with Read/Write Attribute
-    if ((prsDscript = close(fileName)) < 0){
+    if ( close(prsDscript) < 0){
         printf("Faild to close i2c port\n");
         exit(1);
     }
