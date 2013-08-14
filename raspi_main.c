@@ -15,7 +15,6 @@
 #include <getopt.h>
 #include <sys/time.h>
 #include <math.h>
-#include <fcntl.h>
 
 #include <alsa/asoundlib.h>
 #include <pthread.h>

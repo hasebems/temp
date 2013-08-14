@@ -7,6 +7,12 @@
 //
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sched.h>
+#include <errno.h>
+#include <getopt.h>
+#include <fcntl.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 
