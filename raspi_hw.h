@@ -14,6 +14,6 @@ void quitI2c( void );
 void writeI2c( unsigned char adrs, unsigned char data );
 unsigned char readI2c( unsigned char adrs );
 void initLPS331AP( void );
-
+float getPressure( void );
 
 #endif

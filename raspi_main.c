@@ -426,7 +426,7 @@ static int ExcludeAtmospheric( float value )
 	static int cnt = 0;
 	static float atmosPrs = 0;
 	if ( cnt < 100 ){
-		atomosPrs = value;
+		atmosPrs = value;
 		cnt++;
 		return 0;
 	}
