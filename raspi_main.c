@@ -20,15 +20,13 @@
 #include <alsa/asoundlib.h>
 #include <pthread.h>
 
-#include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
-
 #include	"raspi_cwrap.h"
+#include	"raspi_hw.h"
 
 //-------------------------------------------------------------------------
 //			Variables
 //-------------------------------------------------------------------------
-static char *device = "plughw:0,0";                     /* playback device */
+static const char *device = "plughw:0,0";                     /* playback device */
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16;    /* sample format */
 static unsigned int samplingRate = 44100;                       /* stream rate */
 static unsigned int channels = 1;                       /* count of channels */
@@ -41,71 +39,9 @@ static int period_event = 0;                            /* produce poll event af
 static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
-
-static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
-static int prsDscript;       // file discripter
 static int pressure = 0;
-static int temperature = 0;
 
-//-------------------------------------------------------------------------
-//			I2c Device Access Functions
-//-------------------------------------------------------------------------
-void writeI2c( unsigned char adrs, unsigned char data )
-{
-	unsigned char buf[2];
-	
-	buf[0] = adrs;									// Commands for performing a ranging
-	buf[1] = data;
-	
-	if ((write(prsDscript, buf, 2)) != 2) {			// Write commands to the i2c port
-		printf("Error writing to i2c slave\n");
-		exit(1);
-	}
-}
-//-------------------------------------------------------------------------
-unsigned char readI2c( unsigned char adrs )
-{
-	unsigned char buf[2];
-	buf[0] = adrs;									// This is the register we wish to read from
-	
-	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
-		printf("Error writing to i2c slave(read)\n");
-		exit(1);
-	}
-	
-	if (read(prsDscript, buf, 1) != 1) {					// Read back data into buf[]
-		printf("Unable to read from slave\n");
-		exit(1);
-	}
-	
-	return buf[0];
-}
-//-------------------------------------------------------------------------
-void initI2c( void )
-{
-    char	*fileName = "/dev/i2c-1"; // I2C Drive File name
-    int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
-	unsigned char buf;
-	
-	//	Pressure Sensor
-    printf("***** start i2c *****\n");
-	
-    // Open I2C port with Read/Write Attribute
-    if ((prsDscript = open(fileName, O_RDWR)) < 0){
-        printf("Faild to open i2c port\n");
-        exit(1);
-    }
-	
-    // Set Address
-    if (ioctl(prsDscript, I2C_SLAVE, address) < 0){
-        printf("Unable to get bus access to talk to slave\n");
-        exit(1);
-    }
-	
-	//	Init Parameter
-	writeI2c( 0x10, 0x7A );	//	Resolution
-	writeI2c( 0x20, 0x80 );	//	Power On
-}
+
 //-------------------------------------------------------------------------
 //		Generate Wave : MSGF
 //-------------------------------------------------------------------------
@@ -468,10 +404,11 @@ END_OF_THREAD:
 	return (void *)NULL;
 }
 //-------------------------------------------------------------------------
-//		Exclude Atmospheric Pressure
+//		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
-int ExcludeAtmospheric( float value )
+static int ExcludeAtmospheric( float value )
 {
+#if 0
 	static float yminus1 = 0, xminus1 = 0;
 
 	if ( xminus1 == 0 ){
@@ -481,65 +418,40 @@ int ExcludeAtmospheric( float value )
 	}
 	else {
 		//	Normal State
-		float ret = value - xminus1 + yminus1*0.999;
+		float ret = (value - xminus1)*0.997 + yminus1*0.994;
 		yminus1 = ret;
 		xminus1 = value;
 		return (int)roundf( ret );
 	}
+#endif
+	static int cnt = 0;
+	static float atmosPrs = 0;
+	if ( cnt < 100 ){
+		atomosPrs = value;
+		cnt++;
+		return 0;
+	}
+	else {
+		int tmpVal = (int)roundf( value - atmosPrs );
+		if (( tmpVal < 3 ) && ( tmpVal > -3 )) tmpVal = 0;
+		return tmpVal;
+	}
 }
 //-------------------------------------------------------------------------
-//		Original Thread		/	Input Message
-//-------------------------------------------------------------------------
-//	for Pressure Sencer
-#define		PRES_SNCR_START				0x21
-#define		PRES_SNCR_ONE_SHOT			0x01
-#define		PRES_SNCR_RCV_DT_FLG		0x27
-#define		PRES_SNCR_RCV_TMPR			0x01
-#define		PRES_SNCR_RCV_PRES			0x02
-#define		PRES_SNCR_DT_H				0x28
-#define		PRES_SNCR_DT_M				0x29
-#define		PRES_SNCR_DT_L				0x2a
-//-------------------------------------------------------------------------
-static void inputFromI2c( pthread_mutex_t* mutex )
+static void inputForMagicFlute( pthread_mutex_t* mutex )
 {
-	unsigned char rdDt, dt[3];
 	float	fdata;
 	int		idt;
 
 	while (1){
 		
-		
-		//	Pressure Sencer
-		writeI2c( PRES_SNCR_START, PRES_SNCR_ONE_SHOT );	//	Start One shot
-		rdDt = readI2c( PRES_SNCR_RCV_DT_FLG );
-		if ( rdDt & PRES_SNCR_RCV_PRES ){
-			dt[0] = readI2c( PRES_SNCR_DT_H );
-			dt[1] = readI2c( PRES_SNCR_DT_M );
-			dt[2] = readI2c( PRES_SNCR_DT_L );
-			fdata = (dt[2]<<16)|(dt[1]<<8)|dt[0];
-			fdata = fdata*10/4096;
-			idt = ExcludeAtmospheric( fdata );
-			if (( pressure > idt+1 ) || ( pressure < idt-1 )){
-				//	protect trembling
-				printf("Pressure:%d\n",idt);
-				pressure = idt;
-			}
+		fdata = getPressure();
+		idt = ExcludeAtmospheric( fdata );
+		if (( pressure+1 < idt ) || ( pressure-1 > idt )){
+			//	protect trembling
+			printf("Pressure:%d\n",idt);
+			pressure = idt;
 		}
-
-		//	Temperature
-#if 0
-		if ( rdDt & PRES_SNCR_RCV_TMPR ){
-			dt[0] = readI2c( 0x2b );
-			dt[1] = readI2c( 0x2c );
-			data = 0x10000 - (dt[1]<<8)|dt[0];
-			data = (42.5 - data/480)*10;
-			idt = (int)roundf(data);
-			if (( temperature > idt+1 ) || ( temperature < idt-1 )){
-				printf("Temparature:%d\n",idt);
-				temperature = idt;
-			}
-		}
-#endif
 	}
 }
 //-------------------------------------------------------------------------
@@ -629,7 +541,7 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	thInfo.alsaHandle = handle;
 	thInfo.mutexHandle = &mutex;
 	
-	//	Create Thread
+	//	Create Audio Thread
 	pthread_mutex_init(&mutex,NULL);
 	rtn = pthread_create( &threadId, NULL, audioThread, (void *)&thInfo );
 	if (rtn != 0) {
@@ -640,7 +552,7 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	//	Get MIDI Command
 	//inputFromKeyboard( &mutex );
 	//inputFromGPIO( &mutex );
-	inputFromI2c( &mutex );
+	inputForMagicFlute( &mutex );
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );
@@ -648,7 +560,7 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 //-------------------------------------------------------------------------
 //			Initialize GPIO
 //-------------------------------------------------------------------------
-void initGPIO( void )
+static void initGPIO( void )
 {
 	int	fd_exp, fd_dir, i;
 	char gpiodrv[64];
@@ -878,6 +790,7 @@ int main(int argc, char *argv[])
 	//--------------------------------------------------------
 	//	Initialize I2C device
 	initI2c();
+	initLPS331AP();
 
 	//--------------------------------------------------------
 	//	Main Loop
@@ -887,7 +800,11 @@ int main(int argc, char *argv[])
 	free(areas);
 	free(samples);
 	snd_pcm_close(handle);
-	
+
+	//--------------------------------------------------------
+	//	Quit Hardware
+	quitI2c();
+
 	//--------------------------------------------------------
 	//	Call End of MSGF
 	raspiaudio_End();
