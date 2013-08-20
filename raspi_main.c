@@ -35,11 +35,13 @@ static double freq = 440;                               /* sinusoidal wave frequ
 static int verbose = 0;                                 /* verbose flag */
 static int resample = 1;                                /* enable alsa-lib resampling */
 static int period_event = 0;                            /* produce poll event after each period */
+
 static snd_pcm_sframes_t buffer_size;
 static snd_pcm_sframes_t period_size;
 static snd_output_t *output = NULL;
-static int pressure = 0;
 
+static int pressure = 0;
+static unsigned short lastSwData = 0;
 
 //-------------------------------------------------------------------------
 //		Generate Wave : MSGF
@@ -441,6 +443,7 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 {
 	float	fdata;
 	int		idt;
+	unsigned short swdata;
 
 	while (1){
 		
@@ -450,6 +453,12 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 			//	protect trembling
 			printf("Pressure:%d\n",idt);
 			pressure = idt;
+		}
+		
+		swdata = getSwData();
+		if ( swdata != lastSwData ){
+			printf("GPIO Data:%04x\n",swdata);
+			lastSwData = swdata;
 		}
 	}
 }
@@ -790,6 +799,7 @@ int main(int argc, char *argv[])
 	//	Initialize I2C device
 	initI2c();
 	initLPS331AP();
+	initSX1509();
 
 	//--------------------------------------------------------
 	//	Main Loop

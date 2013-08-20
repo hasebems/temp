@@ -13,6 +13,10 @@ void initI2c( void );
 void quitI2c( void );
 void writeI2c( unsigned char adrs, unsigned char data );
 unsigned char readI2c( unsigned char adrs );
+
+void initSX1509( void );
+unsigned short getSwData( void );
+
 void initLPS331AP( void );
 float getPressure( void );
 

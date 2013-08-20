@@ -20,13 +20,14 @@
 //-------------------------------------------------------------------------
 //			Variables
 //-------------------------------------------------------------------------
-static int prsDscript;       // file discripter
+static int i2cDscript;       // file discripter
 
 
 
 //-------------------------------------------------------------------------
 //			Constants
 //-------------------------------------------------------------------------
+static unsigned char GPIO_EXPANDER_ADDRESS = 0x3e;
 static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
 
 
@@ -42,7 +43,7 @@ void initI2c( void )
     printf("***** start i2c *****\n");
 	
     // Open I2C port with Read/Write Attribute
-    if ((prsDscript = open(fileName, O_RDWR)) < 0){
+    if ((i2cDscript = open(fileName, O_RDWR)) < 0){
         printf("Faild to open i2c port\n");
         exit(1);
     }
@@ -53,7 +54,7 @@ void quitI2c( void )
      printf("***** quit i2c *****\n");
 	
     // Open I2C port with Read/Write Attribute
-    if ( close(prsDscript) < 0){
+    if ( close(i2cDscript) < 0){
         printf("Faild to close i2c port\n");
         exit(1);
     }
@@ -66,7 +67,7 @@ void writeI2c( unsigned char adrs, unsigned char data )
 	buf[0] = adrs;									// Commands for performing a ranging
 	buf[1] = data;
 	
-	if ((write(prsDscript, buf, 2)) != 2) {			// Write commands to the i2c port
+	if ((write(i2cDscript, buf, 2)) != 2) {			// Write commands to the i2c port
 		printf("Error writing to i2c slave\n");
 		exit(1);
 	}
@@ -77,18 +78,67 @@ unsigned char readI2c( unsigned char adrs )
 	unsigned char buf[2];
 	buf[0] = adrs;									// This is the register we wish to read from
 	
-	if (write(prsDscript, buf, 1) != 1) {			// Send the register to read from
+	if (write(i2cDscript, buf, 1) != 1) {			// Send the register to read from
 		printf("Error writing to i2c slave(read)\n");
 		exit(1);
 	}
 	
-	if (read(prsDscript, buf, 1) != 1) {					// Read back data into buf[]
+	if (read(i2cDscript, buf, 1) != 1) {					// Read back data into buf[]
 		printf("Unable to read from slave\n");
 		exit(1);
 	}
 	
 	return buf[0];
 }
+
+//-------------------------------------------------------------------------
+//			SX1509 (GPIO Expansion Device)
+//-------------------------------------------------------------------------
+//	for GPIO Expansion
+#define		GPIO_EXPNDR_PULL_UP_B		0x06
+#define		GPIO_EXPNDR_PULL_UP_A		0x07
+#define		GPIO_EXPNDR_DIR_B			0x0e
+#define		GPIO_EXPNDR_DIR_A			0x0f
+#define		GPIO_EXPNDR_DATA_B			0x10
+#define		GPIO_EXPNDR_DATA_A			0x11
+//-------------------------------------------------------------------------
+void accessSX1509( void )
+{
+	int		address = GPIO_EXPANDER_ADDRESS;  // I2C
+
+	// Set Address
+	if (ioctl(i2cDscript, I2C_SLAVE, address) < 0){
+		printf("Unable to get bus access to talk to slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+void initSX1509( void )
+{
+	//	Start Access
+	accessSX1509();
+	
+	//	Init Parameter
+	writeI2c( GPIO_EXPNDR_PULL_UP_B, 0xFF );
+	writeI2c( GPIO_EXPNDR_PULL_UP_A, 0xFF );
+	writeI2c( GPIO_EXPNDR_DIR_B, 0xFF );
+	writeI2c( GPIO_EXPNDR_DIR_A, 0xFF );
+}
+//-------------------------------------------------------------------------
+unsigned short getSwData( void )
+{
+	unsigned short dt;
+			
+	//	Start Access
+	accessLPS331AP();
+	
+	//	GPIO
+	dt = readI2c( GPIO_EXPNDR_DATA_B ) << 8;
+	dt |= readI2c( GPIO_EXPNDR_DATA_A );
+
+	return dt;
+}
+
 //-------------------------------------------------------------------------
 //			LPS331AP (Pressure Sencer : I2c Device)
 //-------------------------------------------------------------------------
@@ -104,19 +154,25 @@ unsigned char readI2c( unsigned char adrs )
 #define		PRES_SNCR_DT_M				0x29
 #define		PRES_SNCR_DT_L				0x2a
 //-------------------------------------------------------------------------
+void accessLPS331AP( void )
+{
+	int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
+	
+	// Set Address
+	if (ioctl(i2cDscript, I2C_SLAVE, address) < 0){
+		printf("Unable to get bus access to talk to slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
 void initLPS331AP( void )
 {
-    int		address = PRESSURE_SENSOR_ADDRESS;  // I2C	
-	
-    // Set Address
-    if (ioctl(prsDscript, I2C_SLAVE, address) < 0){
-        printf("Unable to get bus access to talk to slave\n");
-        exit(1);
-    }
+	//	Start Access
+	accessLPS331AP();
 	
 	//	Init Parameter
-	writeI2c( PRES_SNCR_RESOLUTION, 0x7A );	//	Resolution
 	writeI2c( PRES_SNCR_PWRON, 0x80 );	//	Power On
+	writeI2c( PRES_SNCR_RESOLUTION, 0x7A );	//	Resolution
 }
 //-------------------------------------------------------------------------
 float getPressure( void )
@@ -124,7 +180,10 @@ float getPressure( void )
 	unsigned char rdDt, dt[3];
 	float	fdata = 1000;	//	Default Value
 	int		idt;
-			
+	
+	//	Start Access
+	accessLPS331AP();
+	
 	//	Pressure Sencer
 	writeI2c( PRES_SNCR_START, PRES_SNCR_ONE_SHOT );	//	Start One shot
 	rdDt = readI2c( PRES_SNCR_RCV_DT_FLG );
@@ -135,16 +194,16 @@ float getPressure( void )
 		fdata = (dt[2]<<16)|(dt[1]<<8)|dt[0];
 		fdata = fdata*10/4096;
 	}
-
+	
 	return fdata;	//	10 times of Pressure(hPa)
 	
 	//	Temperature
 #if 0
-		if ( rdDt & PRES_SNCR_RCV_TMPR ){
-			dt[0] = readI2c( 0x2b );
-			dt[1] = readI2c( 0x2c );
-			data = 0x10000 - (dt[1]<<8)|dt[0];
-			data = (42.5 - data/480)*10;
-		}
+	if ( rdDt & PRES_SNCR_RCV_TMPR ){
+		dt[0] = readI2c( 0x2b );
+		dt[1] = readI2c( 0x2c );
+		data = 0x10000 - (dt[1]<<8)|dt[0];
+		data = (42.5 - data/480)*10;
+	}
 #endif
 }
