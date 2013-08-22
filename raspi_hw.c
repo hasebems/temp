@@ -175,10 +175,10 @@ void initLPS331AP( void )
 	writeI2c( PRES_SNCR_RESOLUTION, 0x7A );	//	Resolution
 }
 //-------------------------------------------------------------------------
-float getPressure( void )
+int getPressure( void )
 {
 	unsigned char rdDt, dt[3];
-	float	fdata = 1000;	//	Default Value
+	float	fdata = 10000;	//	Default Value
 	int		idt;
 	
 	//	Start Access
@@ -195,7 +195,7 @@ float getPressure( void )
 		fdata = fdata*10/4096;
 	}
 	
-	return fdata;	//	10 times of Pressure(hPa)
+	return (int)roundf(fdata);	//	10 times of Pressure(hPa)
 	
 	//	Temperature
 #if 0

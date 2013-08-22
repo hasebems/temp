@@ -18,6 +18,6 @@ void initSX1509( void );
 unsigned short getSwData( void );
 
 void initLPS331AP( void );
-float getPressure( void );
+int getPressure( void );
 
 #endif
