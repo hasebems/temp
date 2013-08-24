@@ -407,18 +407,33 @@ END_OF_THREAD:
 //-------------------------------------------------------------------------
 //		Original Thread		/	Input Message
 //-------------------------------------------------------------------------
+static int cnt = 0;
+static int standardPrs = 0;	//	standard pressure value
+static int stockPrs;
+//-------------------------------------------------------------------------
 static int ExcludeAtmospheric( int value )
 {
-	static int cnt = 0;
-	static int atmosPrs = 0;	//	standard pressure value
-
+	int tmpVal;
+	
 	if ( cnt < 100 ){	//	not calculate at first 100 times
-		atmosPrs = value;
+		standardPrs = value;
 		cnt++;
 		return 0;
 	}
 	else {
-		int tmpVal = value - atmosPrs;
+		if (( cnt > 1000 ) && ( stockPrs == value ){
+			cnt++;
+			if ( cnt > 1100 ){	//	when pressure continue same value at 100 times
+				cnt = 1000;
+				standardPrs = stockPrs;
+			}
+		}
+		else {
+			stockPrs = value;
+			cnt = 1001;
+		}
+		
+		tmpVal = value - standardPrs;
 		if (( tmpVal < 3 ) && ( tmpVal > -3 )) tmpVal = 0;
 		return tmpVal;
 	}
@@ -431,7 +446,7 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 
 	while (1){
 		idt = ExcludeAtmospheric( getPressure() );
-		if (( pressure+1 < idt ) || ( pressure-1 > idt )){
+		if ( pressure != idt ){
 			//	protect trembling
 			printf("Pressure:%d\n",idt);
 			pressure = idt;

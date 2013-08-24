@@ -16,6 +16,7 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <math.h>
 
 //-------------------------------------------------------------------------
 //			Variables
@@ -130,7 +131,7 @@ unsigned short getSwData( void )
 	unsigned short dt;
 			
 	//	Start Access
-	accessLPS331AP();
+	accessSX1509();
 	
 	//	GPIO
 	dt = readI2c( GPIO_EXPNDR_DATA_B ) << 8;
