@@ -179,7 +179,7 @@ void initLPS331AP( void )
 int getPressure( void )
 {
 	unsigned char rdDt, dt[3];
-	float	fdata = 10000;	//	Default Value
+	float	fdata = 0;	//	can not get a value
 	int		idt;
 	
 	//	Start Access

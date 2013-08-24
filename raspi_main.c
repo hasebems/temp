@@ -421,7 +421,7 @@ static int ExcludeAtmospheric( int value )
 		return 0;
 	}
 	else {
-		if (( cnt > 1000 ) && ( stockPrs == value ){
+		if (( cnt > 1000 ) && ( stockPrs == value )){
 			cnt++;
 			if ( cnt > 1100 ){	//	when pressure continue same value at 100 times
 				cnt = 1000;
@@ -445,11 +445,14 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 	unsigned short swdata;
 
 	while (1){
-		idt = ExcludeAtmospheric( getPressure() );
-		if ( pressure != idt ){
-			//	protect trembling
-			printf("Pressure:%d\n",idt);
-			pressure = idt;
+		int tempPrs = getPressure();
+		if ( tempPrs != 0 ){
+			idt = ExcludeAtmospheric( tempPrs );
+			if ( pressure != idt ){
+				//	protect trembling
+				printf("Pressure:%d\n",idt);
+				pressure = idt;
+			}
 		}
 		
 		swdata = getSwData();
