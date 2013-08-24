@@ -421,11 +421,12 @@ static int ExcludeAtmospheric( int value )
 		return 0;
 	}
 	else {
-		if (( cnt > 1000 ) && ( stockPrs == value )){
+		if (( cnt > 1000 ) && (( stockPrs-1 <= value ) || ( stockPrs+1 >= value ))){
 			cnt++;
 			if ( cnt > 1100 ){	//	when pressure continue same value at 100 times
 				cnt = 1000;
 				standardPrs = stockPrs;
+				printf("Change Standard Pressure! %d\n",stockPrs);
 			}
 		}
 		else {
@@ -434,7 +435,7 @@ static int ExcludeAtmospheric( int value )
 		}
 		
 		tmpVal = value - standardPrs;
-		if (( tmpVal < 3 ) && ( tmpVal > -3 )) tmpVal = 0;
+		if (( tmpVal < 2 ) && ( tmpVal > -2 )) tmpVal = 0;
 		return tmpVal;
 	}
 }
