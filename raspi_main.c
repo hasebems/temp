@@ -440,6 +440,13 @@ static int ExcludeAtmospheric( int value )
 	}
 }
 //-------------------------------------------------------------------------
+#define	MAX_EXP_WIDTH		40
+const unsigned char tExpValue[MAX_EXP_WIDTH] = {
+	0,0,0,0,0,40,46,52,56,60,
+	64,68,72,76,80,84,88,92,96,100,
+	104,108,112,116,118,120,121,122,123,124,
+	125,126,127,127,127,127,127,127,127,127
+};
 const unsigned char tSwTable[8] = {
 	0x3c, 0x3e, 0x47, 0x40, 0x45, 0x41, 0x43, 0x00
 };
@@ -459,13 +466,13 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 				//	protect trembling
 				printf("Pressure:%d\n",idt);
 				pressure = idt;
-				if ( idt > 5 ){
-					msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = (idt-5)*4;
-					//	Call MSGF
-					pthread_mutex_lock( mutex );
-					raspiaudio_Message( msg, 3 );
-					pthread_mutex_unlock( mutex );
-				}
+				if ( idt < 0 ) idt = 0;
+				else if ( idt >= MAX_EXP_WIDTH ) idt = MAX_EXP_WIDTH-1;
+				msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = tExpValue[idt];
+				//	Call MSGF
+				pthread_mutex_lock( mutex );
+				raspiaudio_Message( msg, 3 );
+				pthread_mutex_unlock( mutex );
 			}
 		}
 		
