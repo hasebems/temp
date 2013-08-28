@@ -440,8 +440,14 @@ static int ExcludeAtmospheric( int value )
 	}
 }
 //-------------------------------------------------------------------------
+const unsigned char tSwTable[8] = {
+	0x3c, 0x3e, 0x47, 0x40, 0x45, 0x41, 0x43, 0x00
+};
+static unsigned char lastNote = 0;
+//-------------------------------------------------------------------------
 static void inputForMagicFlute( pthread_mutex_t* mutex )
 {
+	unsigned char msg[3], note;
 	int		idt;
 	unsigned short swdata;
 
@@ -453,6 +459,13 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 				//	protect trembling
 				printf("Pressure:%d\n",idt);
 				pressure = idt;
+				if ( idt > 5 ){
+					msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = (idt-5)*4;
+					//	Call MSGF
+					pthread_mutex_lock( mutex );
+					raspiaudio_Message( msg, 3 );
+					pthread_mutex_unlock( mutex );
+				}
 			}
 		}
 		
@@ -460,6 +473,18 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 		if ( swdata != lastSwData ){
 			printf("GPIO Data:%04x\n",swdata);
 			lastSwData = swdata;
+			note = tSwTable[swdata & 0x07];
+			if ( note != 0 ){
+				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
+				lastNote = note;
+			}
+			else {
+				msg[0] = 0x90; msg[1] = lastNote; msg[2] = 0x00;
+			}
+			//	Call MSGF
+			pthread_mutex_lock( mutex );
+			raspiaudio_Message( msg, 3 );
+			pthread_mutex_unlock( mutex );
 		}
 	}
 }
