@@ -429,7 +429,7 @@ static int ExcludeAtmospheric( int value )
 				printf("Change Standard Pressure! %d\n",stockPrs);
 			}
 		}
-		else {
+		else if (( value <= standardPrs+2 ) || ( value >= standardPrs-2 )){
 			stockPrs = value;
 			cnt = 1001;
 		}
