@@ -429,7 +429,7 @@ static int ExcludeAtmospheric( int value )
 				printf("Change Standard Pressure! %d\n",stockPrs);
 			}
 		}
-		else if (( value <= standardPrs+2 ) || ( value >= standardPrs-2 )){
+		else if (( value <= standardPrs+2 ) && ( value >= standardPrs-2 )){
 			stockPrs = value;
 			cnt = 1001;
 		}
@@ -442,10 +442,10 @@ static int ExcludeAtmospheric( int value )
 //-------------------------------------------------------------------------
 #define	MAX_EXP_WIDTH		40
 const unsigned char tExpValue[MAX_EXP_WIDTH] = {
-	0,0,0,0,0,40,46,52,56,60,
-	64,68,72,76,80,84,88,92,96,100,
-	104,108,112,116,118,120,121,122,123,124,
-	125,126,127,127,127,127,127,127,127,127
+	0,0,0,0,0,70,72,74,76,78,
+	80,82,84,86,88,90,92,94,96,98,
+	100,102,104,106,108,110,112,114,116,118,
+	120,122,124,126,127,127,127,127,127,127
 };
 const unsigned char tSwTable[8] = {
 	0x3c, 0x3e, 0x47, 0x40, 0x45, 0x41, 0x43, 0x00
