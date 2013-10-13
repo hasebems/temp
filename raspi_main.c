@@ -477,7 +477,7 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 		}
 		
 //		swdata = getSwData();
-		swData = getTchSwData();
+		swdata = getTchSwData();
 		if ( swdata != lastSwData ){
 			printf("Switch Data:%04x\n",swdata);
 			note = tSwTable[swdata & 0x07];
