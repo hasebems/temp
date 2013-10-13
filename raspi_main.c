@@ -4,7 +4,7 @@
 //  Created by Masahiko Hasebe on 2013/05/18.
 //  Copyright (c) 2013 by Masahiko Hasebe(hasebems). All rights reserved.
 //
-//#define RASPI		//	Undefine when building on Xcode
+#include	"raspi.h"
 #ifdef RASPI
 
 #include <stdio.h>
@@ -476,11 +476,12 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 			}
 		}
 		
-		swdata = getSwData();
+//		swdata = getSwData();
+		swData = getTchSwData();
 		if ( swdata != lastSwData ){
-			printf("GPIO Data:%04x\n",swdata);
-			lastSwData = swdata;
+			printf("Switch Data:%04x\n",swdata);
 			note = tSwTable[swdata & 0x07];
+			lastSwData = swdata;
 			if ( note != 0 ){
 				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
 				lastNote = note;
@@ -832,7 +833,8 @@ int main(int argc, char *argv[])
 	//	Initialize I2C device
 	initI2c();
 	initLPS331AP();
-	initSX1509();
+//	initSX1509();
+	initMPR121();
 
 	//--------------------------------------------------------
 	//	Main Loop

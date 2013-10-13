@@ -6,6 +6,8 @@
 //  Copyright (c) 2013 Masahiko Hasebe. All rights reserved.
 //
 
+#include	"raspi.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,10 +15,20 @@
 #include <errno.h>
 #include <getopt.h>
 #include <fcntl.h>
-#include <linux/i2c-dev.h>
+
+#ifdef RASPI
+ #include <linux/i2c-dev.h>
+#endif
+
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <math.h>
+
+#ifdef RASPI
+ #define 	I2CSLAVE_	I2C_SLAVE
+#else
+ #define	I2CSLAVE_	0
+#endif
 
 //-------------------------------------------------------------------------
 //			Variables
@@ -30,6 +42,7 @@ static int i2cDscript;       // file discripter
 //-------------------------------------------------------------------------
 static unsigned char GPIO_EXPANDER_ADDRESS = 0x3e;
 static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
+static unsigned char TOUCH_SENSOR_ADDRESS = 0x5a;
 
 
 
@@ -108,7 +121,7 @@ void accessSX1509( void )
 	int		address = GPIO_EXPANDER_ADDRESS;  // I2C
 
 	// Set Address
-	if (ioctl(i2cDscript, I2C_SLAVE, address) < 0){
+	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
 		printf("Unable to get bus access to talk to slave\n");
 		exit(1);
 	}
@@ -160,7 +173,7 @@ void accessLPS331AP( void )
 	int		address = PRESSURE_SENSOR_ADDRESS;  // I2C
 	
 	// Set Address
-	if (ioctl(i2cDscript, I2C_SLAVE, address) < 0){
+	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
 		printf("Unable to get bus access to talk to slave\n");
 		exit(1);
 	}
@@ -180,7 +193,6 @@ int getPressure( void )
 {
 	unsigned char rdDt, dt[3];
 	float	fdata = 0;	//	can not get a value
-	int		idt;
 	
 	//	Start Access
 	accessLPS331AP();
@@ -208,3 +220,120 @@ int getPressure( void )
 	}
 #endif
 }
+
+//-------------------------------------------------------------------------
+//			MPR121 (Touch Sencer : I2c Device)
+//-------------------------------------------------------------------------
+//	for Touch Sencer
+#define		TCH_SNCR_TOUCH_STATUS1		0x00
+#define		TCH_SNCR_TOUCH_STATUS2		0x01
+#define 	TCH_SNCR_ELE_CFG			0x5e
+#define 	TCH_SNCR_MHD_R				0x2b
+#define 	TCH_SNCR_MHD_F				0x2f
+#define 	TCH_SNCR_ELE0_T				0x41
+#define 	TCH_SNCR_FIL_CFG			0x5d
+#define 	TCH_SNCR_MHDPROXR			0x36
+#define 	TCH_SNCR_EPROXTTH			0x59
+
+// Threshold defaults
+#define		E_THR_T      0x0F	// Electrode touch threshold
+#define		E_THR_R      0x0A	// Electrode release threshold
+#define		PROX_THR_T   0x02	// Prox touch threshold
+#define		PROX_THR_R   0x02	// Prox release threshold
+
+//-------------------------------------------------------------------------
+void accessMPR121( void )
+{
+	int		address = TOUCH_SENSOR_ADDRESS;  // I2C
+
+	// Set Address
+	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
+		printf("Unable to get bus access to talk to slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+void initMPR121( void )
+{
+	int	i, j;
+	
+	//	Start Access
+	accessMPR121();
+	
+	//	Init Parameter
+	// Put the MPR into setup mode
+    writeI2c(TCH_SNCR_ELE_CFG,0x00);
+    
+    // Electrode filters for when data is > baseline
+    unsigned char gtBaseline[] = {
+		0x01,  //MHD_R
+		0x01,  //NHD_R
+		0x00,  //NCL_R
+		0x00   //FDL_R
+	};
+	for ( i=0; i<4; i++ ) writeI2c(TCH_SNCR_MHD_R+i,gtBaseline[i]);
+	
+	// Electrode filters for when data is < baseline
+	unsigned char ltBaseline[] = {
+        0x01,   //MHD_F
+        0x01,   //NHD_F
+        0xFF,   //NCL_F
+        0x02    //FDL_F
+	};
+	for ( i=0; i<4; i++ ) writeI2c(TCH_SNCR_MHD_F+i,ltBaseline[i]);
+
+    // Electrode touch and release thresholds
+    unsigned char electrodeThresholds[] = {
+        E_THR_T, // Touch Threshhold
+        E_THR_R  // Release Threshold
+	};
+	
+    for( j=0; j<12; j++ ){
+		for ( i=0; i<2; i++ ){
+        	writeI2c(TCH_SNCR_ELE0_T+(j*2)+i,electrodeThresholds[i]);
+    	}
+	}
+	
+    // Proximity Settings
+    unsigned char proximitySettings[] = {
+        0xff,   //MHD_Prox_R
+        0xff,   //NHD_Prox_R
+        0x00,   //NCL_Prox_R
+        0x00,   //FDL_Prox_R
+        0x01,   //MHD_Prox_F
+        0x01,   //NHD_Prox_F
+        0xff,   //NCL_Prox_F
+        0xff,   //FDL_Prox_F
+        0x00,   //NHD_Prox_T
+        0x00,   //NCL_Prox_T
+        0x00    //NFD_Prox_T
+	};
+    for ( i=0; i<11; i++ ) writeI2c(TCH_SNCR_MHDPROXR+i,proximitySettings[i]);
+	
+    unsigned char proxThresh[] = {
+        PROX_THR_T, // Touch Threshold
+        PROX_THR_R  // Release Threshold
+	};
+    for ( i=0; i<2; i++ ) writeI2c(TCH_SNCR_EPROXTTH+i,proxThresh[i]);
+	
+    writeI2c(TCH_SNCR_FIL_CFG,0x04);
+    
+    // Set the electrode config to transition to active mode
+    writeI2c(TCH_SNCR_ELE_CFG,0x0c);
+}
+//-------------------------------------------------------------------------
+unsigned short getTchSwData( void )
+{
+	unsigned short dt;
+	
+	//	Start Access
+	accessMPR121();
+	
+	//	GPIO
+	dt = readI2c( TCH_SNCR_TOUCH_STATUS2 ) << 8;
+	dt |= readI2c( TCH_SNCR_TOUCH_STATUS1 );
+	
+	return dt;
+}
+
+

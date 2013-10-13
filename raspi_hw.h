@@ -20,4 +20,7 @@ unsigned short getSwData( void );
 void initLPS331AP( void );
 int getPressure( void );
 
+void initMPR121( void );
+unsigned short getTchSwData( void );
+
 #endif
