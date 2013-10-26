@@ -330,7 +330,8 @@ unsigned short getTchSwData( void )
 	accessMPR121();
 	
 	//	GPIO
-	dt = readI2c( TCH_SNCR_TOUCH_STATUS2 ) << 8;
+	dt = readI2c( TCH_SNCR_TOUCH_STATUS2 );
+	dt <<= 8;
 	dt |= readI2c( TCH_SNCR_TOUCH_STATUS1 );
 	
 	return dt;
