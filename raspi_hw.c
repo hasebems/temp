@@ -104,6 +104,25 @@ unsigned char readI2c( unsigned char adrs )
 	
 	return buf[0];
 }
+//-------------------------------------------------------------------------
+unsigned char readI2cX( unsigned char adrs, unsigned char i2cadrs )
+{
+	unsigned char buf[2];
+	buf[0] = adrs;									// This is the register we wish to read from
+	buf[1] = i2cadrs;
+	
+	if (write(i2cDscript, buf, 2) != 1) {			// Send the register to read from
+		printf("Error writing to i2c slave(read)\n");
+		exit(1);
+	}
+	
+	if (read(i2cDscript, buf, 1) != 1) {					// Read back data into buf[]
+		printf("Unable to read from slave\n");
+		exit(1);
+	}
+	
+	return buf[0];
+}
 
 //-------------------------------------------------------------------------
 //			SX1509 (GPIO Expansion Device)
@@ -330,9 +349,8 @@ unsigned short getTchSwData( void )
 	accessMPR121();
 	
 	//	GPIO
-	dt = readI2c( TCH_SNCR_TOUCH_STATUS2 );
-	dt <<= 8;
-	dt |= readI2c( TCH_SNCR_TOUCH_STATUS1 );
+	dt = readI2cX( TCH_SNCR_TOUCH_STATUS2, TOUCH_SENSOR_ADDRESS ) << 8;
+	dt |= readI2cX( TCH_SNCR_TOUCH_STATUS1, TOUCH_SENSOR_ADDRESS );
 	
 	return dt;
 }
