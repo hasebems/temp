@@ -409,27 +409,30 @@ END_OF_THREAD:
 //-------------------------------------------------------------------------
 static int cnt = 0;
 static int standardPrs = 0;	//	standard pressure value
-static int stockPrs;
+static int stockPrs = 0;
 //-------------------------------------------------------------------------
 static int ExcludeAtmospheric( int value )
 {
 	int tmpVal;
 	
 	if ( cnt < 100 ){	//	not calculate at first 100 times
-		standardPrs = value;
 		cnt++;
+		if ( cnt == 100 ){
+			standardPrs = value;
+			printf("Standard Pressure is %d\n",value);
+		}
 		return 0;
 	}
 	else {
-		if (( cnt > 1000 ) && (( stockPrs-1 <= value ) || ( stockPrs+1 >= value ))){
+		if (( cnt > 1000 ) && (( stockPrs-1 <= value ) && ( stockPrs+1 >= value ))){
 			cnt++;
-			if ( cnt > 1100 ){	//	when pressure continue same value at 100 times
+			if ( cnt > 1050 ){	//	when pressure continue same value by 50 times
 				cnt = 1000;
 				standardPrs = stockPrs;
 				printf("Change Standard Pressure! %d\n",stockPrs);
 			}
 		}
-		else if (( value <= standardPrs+2 ) && ( value >= standardPrs-2 )){
+		else if (( value >= standardPrs+2 ) || ( value <= standardPrs-2 )){
 			stockPrs = value;
 			cnt = 1001;
 		}
@@ -448,13 +451,15 @@ const unsigned char tExpValue[MAX_EXP_WIDTH] = {
 	120,122,124,126,127,127,127,127,127,127
 };
 const unsigned char tSwTable[8] = {
-	0x3c, 0x3e, 0x47, 0x40, 0x45, 0x41, 0x43, 0x00
+//	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c
 };
 static unsigned char lastNote = 0;
+static unsigned char lastExp = 0;
 //-------------------------------------------------------------------------
-static void inputForMagicFlute( pthread_mutex_t* mutex )
+static void inputFromSwAndExp( pthread_mutex_t* mutex )
 {
-	unsigned char msg[3], note;
+	unsigned char msg[3], note, exp;
 	int		idt;
 	unsigned short swdata;
 
@@ -468,11 +473,17 @@ static void inputForMagicFlute( pthread_mutex_t* mutex )
 				pressure = idt;
 				if ( idt < 0 ) idt = 0;
 				else if ( idt >= MAX_EXP_WIDTH ) idt = MAX_EXP_WIDTH-1;
-				msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = tExpValue[idt];
-				//	Call MSGF
-				pthread_mutex_lock( mutex );
-				raspiaudio_Message( msg, 3 );
-				pthread_mutex_unlock( mutex );
+
+				exp = tExpValue[idt];
+				if ( exp != lastExp ){
+					//	Generate Expression Event
+					msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = exp;
+					//	Call MSGF
+					pthread_mutex_lock( mutex );
+					raspiaudio_Message( msg, 3 );
+					pthread_mutex_unlock( mutex );
+					lastExp = exp;
+				}
 			}
 		}
 		
@@ -594,7 +605,7 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	//	Get MIDI Command
 	//inputFromKeyboard( &mutex );
 	//inputFromGPIO( &mutex );
-	inputForMagicFlute( &mutex );
+	inputFromSwAndExp( &mutex );
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );
