@@ -492,19 +492,21 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 				pressure = idt;
 				if ( idt < 0 ) idt = 0;
 				else if ( idt >= MAX_EXP_WIDTH ) idt = MAX_EXP_WIDTH-1;
-
 				exp = tExpValue[idt];
-				if ( exp != lastExp ){
-					//	Generate Expression Event
-					msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = exp;
-					//	Call MSGF
-					pthread_mutex_lock( mutex );
-					raspiaudio_Message( msg, 3 );
-					pthread_mutex_unlock( mutex );
-					lastExp = exp;
-				}
 			}
 		}
+		if ( exp != lastExp ){
+			if ( exp > lastExp ) lastExp++;
+			else lastExp--;
+			
+			//	Generate Expression Event
+			msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = lastExp;
+			//	Call MSGF
+			pthread_mutex_lock( mutex );
+			raspiaudio_Message( msg, 3 );
+			pthread_mutex_unlock( mutex );
+		}
+
 		
 //		swdata = getSwData();
 		swdata = getTchSwData();
