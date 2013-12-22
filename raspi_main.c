@@ -426,7 +426,7 @@ static int ExcludeAtmospheric( int value )
 	else {
 		if (( cnt > 1000 ) && (( stockPrs-1 <= value ) && ( stockPrs+1 >= value ))){
 			cnt++;
-			if ( cnt > 1050 ){	//	when pressure continue same value by 50 times
+			if ( cnt > 1050 ){	//	when pressure keep same value by 50 times
 				cnt = 1000;
 				standardPrs = stockPrs;
 				printf("Change Standard Pressure! %d\n",stockPrs);
@@ -489,6 +489,11 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 	int		idt;
 	unsigned short swdata;
 
+	//	Time Measurement
+	struct	timeval tstr;
+	long	startTime = 0;
+	bool	event = false;
+	
 	while (1){
 		int tempPrs = getPressure();
 		if ( tempPrs != 0 ){
@@ -517,7 +522,23 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 		
 //		swdata = getSwData();
 		swdata = getTchSwData();
-		if ( swdata != lastSwData ){
+		if ( startTime == 0 ){
+			if ( swdata != lastSwData ){
+				gettimeofday(&tstr, NULL);
+				startTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
+			}
+		}
+		else {
+			gettimeofday(&tstr, NULL);
+			long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
+			if ( currentTime - startTime > 50 ){	//	over 50msec
+				startTime = 0;
+				event = true;
+			}
+		}
+
+		if ( event ){
+			event = false;
 			printf("Switch Data:%04x\n",swdata);
 			note = tSwTable[swdata & 0x3f];
 			lastSwData = swdata;
