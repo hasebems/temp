@@ -493,7 +493,14 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 	struct	timeval tstr;
 	long	startTime = 0;
 	bool	event = false;
-	
+
+	//	Initialize
+	msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = 0;
+	pthread_mutex_lock( mutex );
+	raspiaudio_Message( msg, 3 );
+	pthread_mutex_unlock( mutex );
+
+
 	while (1){
 		int tempPrs = getPressure();
 		if ( tempPrs != 0 ){
