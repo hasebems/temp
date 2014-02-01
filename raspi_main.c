@@ -575,7 +575,7 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 		else {
 			gettimeofday(&tstr, NULL);
 			long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
-			if ( currentTime - startTime > 70 ){	//	over 70msec
+			if ( currentTime - startTime > 50 ){	//	over 50msec
 				startTime = 0;
 				event = true;
 			}
