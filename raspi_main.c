@@ -587,8 +587,12 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 			note = tSwTable[swdata & 0x3f];
 			lastSwData = swdata;
 			if ( note != 0 ){
+				unsigned char* color[3];
 				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
 				lastNote = note;
+				//	lighten LED
+				color[0] = 0x00; color[1] = 0x00; color[2] = note;
+				changeColor(color);
 			}
 			else {
 				msg[0] = 0x90; msg[1] = lastNote; msg[2] = 0x00;
@@ -939,6 +943,7 @@ int main(int argc, char *argv[])
 	initLPS331AP();
 //	initSX1509();
 	initMPR121();
+	initBlinkM();
 
 	//--------------------------------------------------------
 	//	Main Loop

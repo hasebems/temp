@@ -23,4 +23,9 @@ int getPressure( void );
 void initMPR121( void );
 unsigned short getTchSwData( void );
 
+void accessBlinkM( void );
+void initBlinkM( void );
+void writeBlinkM( unsigned char cmd, unsigned char* color );
+void changeColor( unsigned char* color );
+
 #endif

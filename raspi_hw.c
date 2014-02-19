@@ -43,7 +43,7 @@ static int i2cDscript;       // file discripter
 static unsigned char GPIO_EXPANDER_ADDRESS = 0x3e;
 static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
 static unsigned char TOUCH_SENSOR_ADDRESS = 0x5a;
-
+static unsigned char LED_BLINKM_ADDRESS = 0x09;
 
 
 //-------------------------------------------------------------------------
@@ -340,6 +340,63 @@ unsigned short getTchSwData( void )
 	accessMPR121();
 	
 	return readI2c_adrs0_1();
+}
+
+
+//-------------------------------------------------------------------------
+//			MPR121 (Touch Sencer : I2c Device)
+//-------------------------------------------------------------------------
+
+
+
+
+//-------------------------------------------------------------------------
+void accessBlinkM( void )
+{
+	int		address = LED_BLINKM_ADDRESS;  // I2C
+	
+	// Set Address
+	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
+		printf("Unable to get bus access to talk to slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+void writeBlinkM( unsigned char cmd, unsigned char* color )
+{
+	unsigned char buf[4];
+
+	buf[0] = cmd;									// Commands for performing a ranging
+	buf[1] = *color;
+	buf[2] = *(color+1);
+	buf[3] = *(color+2);
+	
+	if ((write(i2cDscript, buf, 4)) != 4) {			// Write commands to the i2c port
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+void initBlinkM( void )
+{
+	unsigned char color[3] = {0xff,0xff,0xff};
+	accessBlinkM();
+	writeBlinkM('n',color);
+}
+//-------------------------------------------------------------------------
+void changeColor( unsigned char* color )
+{
+	unsigned char buf[4];
+	
+	buf[0] = 'c';									// Commands for performing a ranging
+	buf[1] = *color;
+	buf[2] = *(color+1);
+	buf[3] = *(color+2);
+	
+	if ((write(i2cDscript, buf, 4)) != 4) {			// Write commands to the i2c port
+		printf("Error writing to i2c slave\n");
+		exit(1);
+	}
 }
 
 
