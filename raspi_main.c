@@ -587,7 +587,7 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 			note = tSwTable[swdata & 0x3f];
 			lastSwData = swdata;
 			if ( note != 0 ){
-				unsigned char* color[3];
+				unsigned char color[3];
 				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
 				lastNote = note;
 				//	lighten LED
