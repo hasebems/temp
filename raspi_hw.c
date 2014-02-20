@@ -379,8 +379,9 @@ void writeBlinkM( unsigned char cmd, unsigned char* color )
 //-------------------------------------------------------------------------
 void initBlinkM( void )
 {
-	unsigned char color[3] = {0xff,0xff,0xff};
+	unsigned char color[3] = {0x00,0x00,0x00};
 	accessBlinkM();
+	writeI2c('o', 0 );			//	stop script
 	writeBlinkM('n',color);
 }
 //-------------------------------------------------------------------------
