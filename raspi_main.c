@@ -526,6 +526,8 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 	int		idt;
 	unsigned short swdata;
 
+	unsigned char color[3] = {0xff,0x00,0x00};	
+	
 	//	Time Measurement
 	struct	timeval tstr;
 	long	startTime = 0;
@@ -582,17 +584,17 @@ static void inputFromSwAndExp( pthread_mutex_t* mutex )
 		}
 
 		if ( event ){
+			//	lighten LED
+			//color[0] = 0x00; color[1] = 0x00; color[2] = note;
+			writeBlinkM('n',color);
+
 			event = false;
 			printf("Switch Data:%04x\n",swdata);
 			note = tSwTable[swdata & 0x3f];
 			lastSwData = swdata;
 			if ( note != 0 ){
-				unsigned char color[3] = {0xff,0x00,0x00};
 				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
 				lastNote = note;
-				//	lighten LED
-				//color[0] = 0x00; color[1] = 0x00; color[2] = note;
-				writeBlinkM('n',color);
 			}
 			else {
 				msg[0] = 0x90; msg[1] = lastNote; msg[2] = 0x00;
