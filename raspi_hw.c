@@ -387,17 +387,8 @@ void initBlinkM( void )
 //-------------------------------------------------------------------------
 void changeColor( unsigned char* color )
 {
-	unsigned char buf[4];
-	
-	buf[0] = 'c';									// Commands for performing a ranging
-	buf[1] = *color;
-	buf[2] = *(color+1);
-	buf[3] = *(color+2);
-	
-	if ((write(i2cDscript, buf, 4)) != 4) {			// Write commands to the i2c port
-		printf("Error writing to i2c slave\n");
-		exit(1);
-	}
+	accessBlinkM();
+	writeBlinkM('c',color);
 }
 
 
