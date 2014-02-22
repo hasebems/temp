@@ -77,7 +77,7 @@ const unsigned char tExpValue[MAX_EXP_WIDTH] = {
 	126,	126,	126,	126,	126,	126,	126,	126,	127,	127
 };
 #endif
-
+//-------------------------------------------------------------------------
 const unsigned char tSwTable[64] = {
 	
 	//	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c,
@@ -98,7 +98,21 @@ const unsigned char tSwTable[64] = {
 	0x54, 0x4f, 0x4d, 0x51, 0x4c, 0x53, 0x4a, 0x48,
 	0x55, 0x50, 0x4e, 0x52, 0x4d, 0x54, 0x4b, 0x49
 };
-
+//-------------------------------------------------------------------------
+const unsigned char tNoteToColor[12][3] = {
+	{ 0xff, 0x00, 0x00 },
+	{ 0xff, 0xff, 0xff },
+	{ 0x80, 0x20, 0x00 },
+	{ 0xff, 0xff, 0xff },
+	{ 0x30, 0x30, 0x00 },
+	{ 0x00, 0xff, 0x00 },
+	{ 0xff, 0xff, 0xff },
+	{ 0x00, 0x00, 0xff },
+	{ 0xff, 0xff, 0xff },
+	{ 0x20, 0x00, 0x80 },
+	{ 0xff, 0xff, 0xff },
+	{ 0x60, 0x00, 0x60 }
+};
 
 //-------------------------------------------------------------------------
 //		Touch & Pressure Sencer Input
@@ -205,10 +219,9 @@ void eventLoop( pthread_mutex_t* mutex )
 				note = tSwTable[swdata & 0x3f];
 				lastSwData = swdata;
 				if ( note != 0 ){
-					unsigned char color[3] = {0xff,0x00,0x00};
 					vel = 0x7f;
 					lastNote = note;
-					changeColor(color);
+					changeColor(tNoteToColor[(note-48)%12]);
 				}
 				else {
 					note = lastNote;
