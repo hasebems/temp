@@ -12,6 +12,7 @@
 #include <pthread.h>
 
 void initHw( void );
+void quitHw( void );
 	
 void eventLoopGPIO( pthread_mutex_t* mutex );
 void eventLoopKbd( pthread_mutex_t* mutex );

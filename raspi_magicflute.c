@@ -11,6 +11,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <stdbool.h>
 
@@ -19,14 +23,19 @@
 #include	"raspi_cwrap.h"
 #include	"raspi_hw.h"
 
-static int cnt = 0;
-static int standardPrs = 0;	//	standard pressure value
-static int stockPrs = 0;
-static unsigned char lastNote = 0;
-static unsigned char lastExp = 0;
-static int pressure = 0;
-static unsigned short lastSwData = 0;
-
+//-------------------------------------------------------------------------
+//		event Loop
+//-------------------------------------------------------------------------
+void sendMessageToMsgf( pthread_mutex_t* mutex,
+					    unsigned char msg0, unsigned char msg1, unsigned char msg2 )
+{
+	unsigned char msg[3];
+	msg[0] = msg0; msg[1] = msg1; msg[2] = msg2;
+	//	Call MSGF
+	pthread_mutex_lock( mutex );
+	raspiaudio_Message( msg, 3 );
+	pthread_mutex_unlock( mutex );
+}
 //-------------------------------------------------------------------------
 #if 0
 #define	MAX_EXP_WIDTH		40
@@ -94,30 +103,34 @@ const unsigned char tSwTable[64] = {
 //-------------------------------------------------------------------------
 //		Touch & Pressure Sencer Input
 //-------------------------------------------------------------------------
+static int startCount = 0;
+static int standardPrs = 0;	//	standard pressure value
+static int stockPrs = 0;
+//-------------------------------------------------------------------------
 static int ExcludeAtmospheric( int value )
 {
 	int tmpVal;
 	
-	if ( cnt < 100 ){	//	not calculate at first 100 times
-		cnt++;
-		if ( cnt == 100 ){
+	if ( startCount < 100 ){	//	not calculate at first 100 times
+		startCount++;
+		if ( startCount == 100 ){
 			standardPrs = value;
 			printf("Standard Pressure is %d\n",value);
 		}
 		return 0;
 	}
 	else {
-		if (( cnt > 1000 ) && (( stockPrs-1 <= value ) && ( stockPrs+1 >= value ))){
-			cnt++;
-			if ( cnt > 1050 ){	//	when pressure keep same value by 50 times
-				cnt = 1000;
+		if (( startCount > 1000 ) && (( stockPrs-1 <= value ) && ( stockPrs+1 >= value ))){
+			startCount++;
+			if ( startCount > 1050 ){	//	when pressure keep same value by 50 times
+				startCount = 1000;
 				standardPrs = stockPrs;
 				printf("Change Standard Pressure! %d\n",stockPrs);
 			}
 		}
 		else if (( value >= standardPrs+2 ) || ( value <= standardPrs-2 )){
 			stockPrs = value;
-			cnt = 1001;
+			startCount = 1001;
 		}
 		
 		tmpVal = value - standardPrs;
@@ -125,55 +138,56 @@ static int ExcludeAtmospheric( int value )
 		return tmpVal;
 	}
 }
+//-------------------------------------------------------------------------
+static unsigned char currentExp = 0;
+static unsigned char lastExp = 0;
+static int currentPressure = 0;
+//-------------------------------------------------------------------------
+static void analysePressure( pthread_mutex_t* mutex )
+{
+	int tempPrs = getPressure();
+	if ( tempPrs != 0 ){
+		int idt = ExcludeAtmospheric( tempPrs );
+		if ( currentPressure != idt ){
+			//	protect trembling
+			printf("Pressure:%d\n",idt);
+			currentPressure = idt;
+			if ( idt < 0 ) idt = 0;
+			else if ( idt >= MAX_EXP_WIDTH ) idt = MAX_EXP_WIDTH-1;
+			currentExp = tExpValue[idt];
+		}
+	}
+
+	if ( currentExp != lastExp ){
+		if ( currentExp > lastExp ) lastExp++;
+		else lastExp--;
+		
+		//	Generate Expression Event
+		sendMessageToMsgf( mutex, 0xb0, 0x0b, lastExp );
+	}
+}
 
 //-------------------------------------------------------------------------
 //		event Loop
 //-------------------------------------------------------------------------
+static unsigned char lastNote = 0;
+static unsigned short lastSwData = 0;
+//-------------------------------------------------------------------------
 void eventLoop( pthread_mutex_t* mutex )
 {
-	unsigned char msg[3], note, exp;
-	int		idt;
+	unsigned char note, vel;
 	unsigned short swdata;
 	
 	//	Time Measurement
 	struct	timeval tstr;
 	long	startTime = 0;
-	bool	event = false;
 	
 	//	Initialize
-	exp  = 0;
-	msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = 0;
-	pthread_mutex_lock( mutex );
-	raspiaudio_Message( msg, 3 );
-	pthread_mutex_unlock( mutex );
+	sendMessageToMsgf( mutex, 0xb0, 0x0b, 0 );
 	
 	while (1){
-		int tempPrs = getPressure();
-		if ( tempPrs != 0 ){
-			idt = ExcludeAtmospheric( tempPrs );
-			if ( pressure != idt ){
-				//	protect trembling
-				printf("Pressure:%d\n",idt);
-				pressure = idt;
-				if ( idt < 0 ) idt = 0;
-				else if ( idt >= MAX_EXP_WIDTH ) idt = MAX_EXP_WIDTH-1;
-				exp = tExpValue[idt];
-			}
-		}
-		if ( exp != lastExp ){
-			if ( exp > lastExp ) lastExp++;
-			else lastExp--;
-			
-			//	Generate Expression Event
-			msg[0] = 0xb0; msg[1] = 0x0b; msg[2] = lastExp;
-			//	Call MSGF
-			pthread_mutex_lock( mutex );
-			raspiaudio_Message( msg, 3 );
-			pthread_mutex_unlock( mutex );
-		}
-		
-		
-		//		swdata = getSwData();
+		analysePressure(mutex);
+
 		swdata = getTchSwData();
 		if ( startTime == 0 ){
 			if ( swdata != lastSwData ){
@@ -186,29 +200,22 @@ void eventLoop( pthread_mutex_t* mutex )
 			long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
 			if ( currentTime - startTime > 50 ){	//	over 50msec
 				startTime = 0;
-				event = true;
+				printf("Switch Data:%04x\n",swdata);
+
+				note = tSwTable[swdata & 0x3f];
+				lastSwData = swdata;
+				if ( note != 0 ){
+					unsigned char color[3] = {0xff,0x00,0x00};
+					vel = 0x7f;
+					lastNote = note;
+					changeColor(color);
+				}
+				else {
+					note = lastNote;
+					vel = 0x00;
+				}
+				sendMessageToMsgf( mutex, 0x90, note, vel );
 			}
-		}
-		
-		if ( event ){
-			event = false;
-			printf("Switch Data:%04x\n",swdata);
-			note = tSwTable[swdata & 0x3f];
-			lastSwData = swdata;
-			if ( note != 0 ){
-				unsigned char color[3] = {0xff,0x00,0x00};
-				
-				msg[0] = 0x90; msg[1] = note; msg[2] = 0x7f;
-				lastNote = note;
-				changeColor(color);
-			}
-			else {
-				msg[0] = 0x90; msg[1] = lastNote; msg[2] = 0x00;
-			}
-			//	Call MSGF
-			pthread_mutex_lock( mutex );
-			raspiaudio_Message( msg, 3 );
-			pthread_mutex_unlock( mutex );
 		}
 	}
 }
@@ -257,7 +264,7 @@ void eventLoopGPIO( pthread_mutex_t* mutex )
 			}
 		}
 	}
-};
+}
 //-------------------------------------------------------------------------
 void eventLoopKbd( pthread_mutex_t* mutex )
 {
@@ -286,7 +293,7 @@ void eventLoopKbd( pthread_mutex_t* mutex )
 			pthread_mutex_unlock( mutex );
 		}
 	}
-};
+}
 
 //-------------------------------------------------------------------------
 //			Initialize GPIO
@@ -333,5 +340,12 @@ void initHw( void )
 	//	initSX1509();
 	initMPR121();
 	initBlinkM();
+}
+//-------------------------------------------------------------------------
+//			Quit
+//-------------------------------------------------------------------------
+void quitHw( void )
+{
+	quitI2c();
 }
 #endif
