@@ -221,7 +221,7 @@ void eventLoop( pthread_mutex_t* mutex )
 				if ( note != 0 ){
 					vel = 0x7f;
 					lastNote = note;
-					changeColor(tNoteToColor[(note-48)%12]);
+					changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
 				}
 				else {
 					note = lastNote;
