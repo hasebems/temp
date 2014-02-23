@@ -45,8 +45,8 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 	tg->process( abuf );							//	MSGF IF
 	
 	for ( int j = 0; j < bufsize; j++ ) {
-		double wv = abuf.getAudioBuffer(j) * 15000;
-		wv += rand()/(RAND_MAX/2);	//	Dither
+		double wv = abuf.getAudioBuffer(j) * 50000;
+		wv += rand()/(RAND_MAX/8);	//	Dither
 		buf[j] = static_cast<int16_t>(wv);
     }
 	
