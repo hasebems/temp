@@ -237,7 +237,7 @@ void eventLoop( pthread_mutex_t* mutex )
 //-------------------------------------------------------------------------
 void eventLoopGPIO( pthread_mutex_t* mutex )
 {
-	unsigned char msg[3];
+	unsigned char note, vel;
 	int 	i;
 	char	gpioPath[64];
 	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM], swOld[MAX_SW_NUM] = {1,1,1};
@@ -261,18 +261,15 @@ void eventLoopGPIO( pthread_mutex_t* mutex )
 		for (i=0; i<MAX_SW_NUM; i++ ){
 			if ( swNew[i] != swOld[i] ){
 				if ( !swNew[i] ){
-					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0x7f;
+					note = 0x3c + 2*i; vel = 0x7f;
 					printf("Now KeyOn of %d\n",i);
 				}
 				else {
-					msg[0] = 0x90; msg[1] = 0x3c + 2*i; msg[2] = 0;
+					note = 0x3c + 2*i; vel = 0;
 					printf("Now KeyOff of %d\n",i);
 				}
 				//	Call MSGF
-				pthread_mutex_lock( mutex );
-				raspiaudio_Message( msg, 3 );
-				pthread_mutex_unlock( mutex );
-				
+				sendMessageToMsgf( mutex, 0x90, note, vel );
 				swOld[i] = swNew[i];
 			}
 		}
@@ -282,28 +279,29 @@ void eventLoopGPIO( pthread_mutex_t* mutex )
 void eventLoopKbd( pthread_mutex_t* mutex )
 {
 	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
-	unsigned char msg[3];
+	unsigned char msg[3] note, vel;
 	int key;
 	
 	while (( key = getchar()) != -1 ){
 		bool anykey = false;
-		msg[0] = 0x90;
 		switch (key){
-			case 'c': msg[1] = 0x3c; c?(c=0,msg[2]=0):(c=1,msg[2]=0x7f); anykey = true; break;
-			case 'd': msg[1] = 0x3e; d?(d=0,msg[2]=0):(d=1,msg[2]=0x7f); anykey = true; break;
-			case 'e': msg[1] = 0x40; e?(e=0,msg[2]=0):(e=1,msg[2]=0x7f); anykey = true; break;
-			case 'f': msg[1] = 0x41; f?(f=0,msg[2]=0):(f=1,msg[2]=0x7f); anykey = true; break;
-			case 'g': msg[1] = 0x43; g?(g=0,msg[2]=0):(g=1,msg[2]=0x7f); anykey = true; break;
-			case 'a': msg[1] = 0x45; a?(a=0,msg[2]=0):(a=1,msg[2]=0x7f); anykey = true; break;
-			case 'b': msg[1] = 0x47; b?(b=0,msg[2]=0):(b=1,msg[2]=0x7f); anykey = true; break;
-			case 'q': msg[0] = 0xc0; q?(q=0,msg[1]=0):(q=1,msg[1]=0x7f); anykey = true; break;
+			case 'c': note = 0x3c; c?(c=0,vel=0):(c=1,vel=0x7f); anykey = true; break;
+			case 'd': note = 0x3e; d?(d=0,vel=0):(d=1,vel=0x7f); anykey = true; break;
+			case 'e': note = 0x40; e?(e=0,vel=0):(e=1,vel=0x7f); anykey = true; break;
+			case 'f': note = 0x41; f?(f=0,vel=0):(f=1,vel=0x7f); anykey = true; break;
+			case 'g': note = 0x43; g?(g=0,vel=0):(g=1,vel=0x7f); anykey = true; break;
+			case 'a': note = 0x45; a?(a=0,vel=0):(a=1,vel=0x7f); anykey = true; break;
+			case 'b': note = 0x47; b?(b=0,vel=0):(b=1,vel=0x7f); anykey = true; break;
+			case 'q':{
+				q?(q=0,vel=0):(q=1,vel=0x7f);
+				sendMessageToMsgf( mutex, 0xc0, vel, 0 );
+				break;
+			}
 			default: break;
 		}
 		if ( anykey == true ){
 			//	Call MSGF
-			pthread_mutex_lock( mutex );
-			raspiaudio_Message( msg, 3 );
-			pthread_mutex_unlock( mutex );
+			sendMessageToMsgf( mutex, 0x90, note, vel );
 		}
 	}
 }

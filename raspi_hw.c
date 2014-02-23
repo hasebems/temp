@@ -82,7 +82,7 @@ void writeI2c( unsigned char adrs, unsigned char data )
 	buf[1] = data;
 	
 	if ((write(i2cDscript, buf, 2)) != 2) {			// Write commands to the i2c port
-		printf("Error writing to i2c slave\n");
+		printf("Error writing to i2c slave(I2C)\n");
 		exit(1);
 	}
 }
@@ -93,12 +93,12 @@ unsigned char readI2c( unsigned char adrs )
 	buf[0] = adrs;									// This is the register we wish to read from
 	
 	if (write(i2cDscript, buf, 1) != 1) {			// Send the register to read from
-		printf("Error writing to i2c slave(read)\n");
+		printf("Error writing to i2c slave(I2C:read)\n");
 		exit(1);
 	}
 	
 	if (read(i2cDscript, buf, 1) != 1) {					// Read back data into buf[]
-		printf("Unable to read from slave\n");
+		printf("Unable to read from slave(I2C)\n");
 		exit(1);
 	}
 	
@@ -110,7 +110,7 @@ unsigned short readI2c_adrs0_1( void )
 	unsigned char buf[2];
 
 	if (read(i2cDscript, buf, 2) != 2) {					// Read back data into buf[]
-		printf("Unable to read from slave\n");
+		printf("Unable to read from slave(I2C)\n");
 		exit(1);
 	}
 	
@@ -134,7 +134,7 @@ void accessSX1509( void )
 
 	// Set Address
 	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
-		printf("Unable to get bus access to talk to slave\n");
+		printf("Unable to get bus access to talk to slave(GPIOEX)\n");
 		exit(1);
 	}
 }
@@ -186,7 +186,7 @@ void accessLPS331AP( void )
 	
 	// Set Address
 	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
-		printf("Unable to get bus access to talk to slave\n");
+		printf("Unable to get bus access to talk to slave(PRS)\n");
 		exit(1);
 	}
 }
@@ -260,7 +260,7 @@ void accessMPR121( void )
 
 	// Set Address
 	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
-		printf("Unable to get bus access to talk to slave\n");
+		printf("Unable to get bus access to talk to slave(TOUCH)\n");
 		exit(1);
 	}
 }
@@ -352,7 +352,7 @@ void accessBlinkM( void )
 	
 	// Set Address
 	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
-		printf("Unable to get bus access to talk to slave\n");
+		printf("Unable to get bus access to talk to slave(LED)\n");
 		exit(1);
 	}
 }
@@ -367,7 +367,7 @@ void writeBlinkM( unsigned char cmd, unsigned char* color )
 	buf[3] = *(color+2);
 	
 	if ((write(i2cDscript, buf, 4)) != 4) {			// Write commands to the i2c port
-		printf("Error writing to i2c slave\n");
+		printf("Error writing to i2c slave(LED)\n");
 		exit(1);
 	}
 }
