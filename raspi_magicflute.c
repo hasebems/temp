@@ -279,7 +279,7 @@ void eventLoopGPIO( pthread_mutex_t* mutex )
 void eventLoopKbd( pthread_mutex_t* mutex )
 {
 	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
-	unsigned char msg[3] note, vel;
+	unsigned char note, vel;
 	int key;
 	
 	while (( key = getchar()) != -1 ){
