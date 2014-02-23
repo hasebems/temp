@@ -23,7 +23,6 @@ static AudioOutput au;
 void raspiaudio_Init( void )
 {
 	au.SetTg( new msgf::Msgf() );
-	srand(2);
 }
 
 //--------------------------------------------------------
@@ -47,7 +46,7 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 	
 	for ( int j = 0; j < bufsize; j++ ) {
 		double wv = abuf.getAudioBuffer(j) * 15000;
-		wv += rand();	//	Dither
+		wv += rand()/(RAND_MAX/2);	//	Dither
 		buf[j] = static_cast<int16_t>(wv);
     }
 	
