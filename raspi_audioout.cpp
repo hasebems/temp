@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <stdlib.h>
 #include "raspi_audioout.h"
 
 #include "msgf_audio_buffer.h"
@@ -22,6 +23,7 @@ static AudioOutput au;
 void raspiaudio_Init( void )
 {
 	au.SetTg( new msgf::Msgf() );
+	srand(2);
 }
 
 //--------------------------------------------------------
@@ -44,8 +46,9 @@ int	raspiaudio_Process( int16_t* buf, int bufsize )
 	tg->process( abuf );							//	MSGF IF
 	
 	for ( int j = 0; j < bufsize; j++ ) {
-		int16_t dt = static_cast<int16_t>(abuf.getAudioBuffer(j) * 15000);
-		buf[j] = dt;
+		double wv = abuf.getAudioBuffer(j) * 15000;
+		wv += rand();	//	Dither
+		buf[j] = static_cast<int16_t>(wv);
     }
 	
 	abuf.releaseAudioBuffer();						//	MSGF IF
