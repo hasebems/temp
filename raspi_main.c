@@ -427,7 +427,10 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	}
 	
 	//	Event Loop
-	eventLoop( &mutex );
+	eventLoopInit( &mutex );
+	while (1){
+		eventLoop( &mutex );
+	}
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );

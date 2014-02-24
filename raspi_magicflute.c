@@ -77,45 +77,9 @@ const unsigned char tExpValue[MAX_EXP_WIDTH] = {
 	126,	126,	126,	126,	126,	126,	126,	126,	127,	127
 };
 #endif
-//-------------------------------------------------------------------------
-const unsigned char tSwTable[64] = {
-	
-	//	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c,
-	//	0x54, 0x4c, 0x4d, 0x4a, 0x4f, 0x53, 0x51, 0x48,
-	//	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c,
-	//	0x54, 0x4c, 0x4d, 0x4a, 0x4f, 0x53, 0x51, 0x48,
-	//	0x47, 0x3f, 0x40, 0x3d, 0x42, 0x46, 0x44, 0x3b,
-	//	0x53, 0x4b, 0x4c, 0x49, 0x4e, 0x52, 0x50, 0x47,
-	//	0x49, 0x41, 0x42, 0x3f, 0x44, 0x48, 0x46, 0x3d,
-	//	0x55, 0x4d, 0x4e, 0x4b, 0x50, 0x54, 0x52, 0x49
-	
-	0x48, 0x43, 0x41, 0x45, 0x40, 0x47, 0x3e, 0x3c,
-	0x47, 0x42, 0x40, 0x44, 0x3f, 0x46, 0x3d, 0x3b,
-	0x48, 0x43, 0x41, 0x45, 0x40, 0x47, 0x3e, 0x3c,
-	0x49, 0x44, 0x42, 0x46, 0x41, 0x48, 0x3f, 0x3d,
-	0x54, 0x4f, 0x4d, 0x51, 0x4c, 0x53, 0x4a, 0x48,
-	0x53, 0x4e, 0x4c, 0x50, 0x4b, 0x52, 0x49, 0x47,
-	0x54, 0x4f, 0x4d, 0x51, 0x4c, 0x53, 0x4a, 0x48,
-	0x55, 0x50, 0x4e, 0x52, 0x4d, 0x54, 0x4b, 0x49
-};
-//-------------------------------------------------------------------------
-const unsigned char tNoteToColor[12][3] = {
-	{ 0xff, 0x00, 0x00 },
-	{ 0xe0, 0x10, 0x00 },
-	{ 0xc0, 0x20, 0x00 },
-	{ 0xa0, 0x30, 0x00 },
-	{ 0x80, 0x40, 0x00 },
-	{ 0x00, 0xff, 0x00 },
-	{ 0x00, 0x60, 0x60 },
-	{ 0x00, 0x00, 0xff },
-	{ 0x10, 0x00, 0xe0 },
-	{ 0x20, 0x00, 0xc0 },
-	{ 0x30, 0xff, 0xa0 },
-	{ 0x40, 0x00, 0x80 }
-};
 
 //-------------------------------------------------------------------------
-//		Touch & Pressure Sencer Input
+//		Pressure Sencer Input
 //-------------------------------------------------------------------------
 static int startCount = 0;
 static int standardPrs = 0;	//	standard pressure value
@@ -182,107 +146,149 @@ static void analysePressure( pthread_mutex_t* mutex )
 }
 
 //-------------------------------------------------------------------------
-//		event Loop
+//		Touch Sencer Input
 //-------------------------------------------------------------------------
+static unsigned short swdata;
 static unsigned char lastNote = 0;
 static unsigned short lastSwData = 0;
+//	Time Measurement
+static long	startTime = 0;
 //-------------------------------------------------------------------------
-void eventLoop( pthread_mutex_t* mutex )
+const unsigned char tSwTable[64] = {
+	
+	//	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c,
+	//	0x54, 0x4c, 0x4d, 0x4a, 0x4f, 0x53, 0x51, 0x48,
+	//	0x48, 0x40, 0x41, 0x3e, 0x43, 0x47, 0x45, 0x3c,
+	//	0x54, 0x4c, 0x4d, 0x4a, 0x4f, 0x53, 0x51, 0x48,
+	//	0x47, 0x3f, 0x40, 0x3d, 0x42, 0x46, 0x44, 0x3b,
+	//	0x53, 0x4b, 0x4c, 0x49, 0x4e, 0x52, 0x50, 0x47,
+	//	0x49, 0x41, 0x42, 0x3f, 0x44, 0x48, 0x46, 0x3d,
+	//	0x55, 0x4d, 0x4e, 0x4b, 0x50, 0x54, 0x52, 0x49
+	
+	0x48, 0x43, 0x41, 0x45, 0x40, 0x47, 0x3e, 0x3c,
+	0x47, 0x42, 0x40, 0x44, 0x3f, 0x46, 0x3d, 0x3b,
+	0x48, 0x43, 0x41, 0x45, 0x40, 0x47, 0x3e, 0x3c,
+	0x49, 0x44, 0x42, 0x46, 0x41, 0x48, 0x3f, 0x3d,
+	0x54, 0x4f, 0x4d, 0x51, 0x4c, 0x53, 0x4a, 0x48,
+	0x53, 0x4e, 0x4c, 0x50, 0x4b, 0x52, 0x49, 0x47,
+	0x54, 0x4f, 0x4d, 0x51, 0x4c, 0x53, 0x4a, 0x48,
+	0x55, 0x50, 0x4e, 0x52, 0x4d, 0x54, 0x4b, 0x49
+};
+//-------------------------------------------------------------------------
+const unsigned char tNoteToColor[12][3] = {
+	{ 0xff, 0x00, 0x00 },
+	{ 0xe0, 0x10, 0x00 },
+	{ 0xc0, 0x20, 0x00 },
+	{ 0xa0, 0x30, 0x00 },
+	{ 0x80, 0x40, 0x00 },
+	{ 0x00, 0xff, 0x00 },
+	{ 0x00, 0x60, 0x60 },
+	{ 0x00, 0x00, 0xff },
+	{ 0x10, 0x00, 0xe0 },
+	{ 0x20, 0x00, 0xc0 },
+	{ 0x30, 0xff, 0xa0 },
+	{ 0x40, 0x00, 0x80 }
+};
+//-------------------------------------------------------------------------
+static void analyseTouchSwitch( pthread_mutex_t* mutex )
 {
 	unsigned char note, vel;
-	unsigned short swdata;
-	
-	//	Time Measurement
 	struct	timeval tstr;
-	long	startTime = 0;
-	
-	//	Initialize
-	sendMessageToMsgf( mutex, 0xb0, 0x0b, 0 );
-	
-	while (1){
-		analysePressure(mutex);
 
-		swdata = getTchSwData();
-		if ( startTime == 0 ){
-			if ( swdata != lastSwData ){
-				gettimeofday(&tstr, NULL);
-				startTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
-			}
-		}
-		else {
+	swdata = getTchSwData();
+	if ( startTime == 0 ){
+		//	first time pushing
+		if ( swdata != lastSwData ){
 			gettimeofday(&tstr, NULL);
-			long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
-			if ( currentTime - startTime > 50 ){	//	over 50msec
-				startTime = 0;
-				printf("Switch Data:%04x\n",swdata);
+			startTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
+		}
+	}
+	else {
+		gettimeofday(&tstr, NULL);
+		long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
+		long waitTime = 70;
 
-				note = tSwTable[swdata & 0x3f];
-				lastSwData = swdata;
-				if ( note != 0 ){
-					vel = 0x7f;
-					lastNote = note;
-					changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
-				}
-				else {
-					note = lastNote;
-					vel = 0x00;
-				}
-				sendMessageToMsgf( mutex, 0x90, note, vel );
+		//	magic algorithm for earier judgement
+		if ((~(lastSwData&0x07)&0x07) & (swData&0x07)) waitTime = 20;
+
+		if ( currentTime - startTime > waitTime ){	//	over 50msec
+			startTime = 0;
+			printf("Switch Data:%04x\n",swdata);
+			
+			note = tSwTable[swdata & 0x3f];
+			lastSwData = swdata;
+			if ( note != 0 ){
+				vel = 0x7f;
+				lastNote = note;
+				changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
 			}
+			else {
+				note = lastNote;
+				vel = 0x00;
+			}
+			sendMessageToMsgf( mutex, 0x90, note, vel );
 		}
 	}
 }
+
 //-------------------------------------------------------------------------
-#define		MAX_SW_NUM			3
+//		GPIO Input
 //-------------------------------------------------------------------------
-void eventLoopGPIO( pthread_mutex_t* mutex )
+#define			MAX_SW_NUM			3
+static int		swOld[MAX_SW_NUM] = {1,1,1};
+//-------------------------------------------------------------------------
+static void analyseGPIO( pthread_mutex_t* mutex )
 {
 	unsigned char note, vel;
 	int 	i;
 	char	gpioPath[64];
-	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM], swOld[MAX_SW_NUM] = {1,1,1};
+	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM]
 	
-	while (1){
-		for (i=0; i<MAX_SW_NUM; i++){
-			sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+9);
-			fd_in[i] = open(gpioPath,O_RDWR);
-			if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
-		}
-		for (i=0; i<MAX_SW_NUM; i++){
-			char value[2];
-			read(fd_in[i], value, 2);
-			if ( value[0] == '0' ) swNew[i] = 0;
-			else swNew[i] = 1;
-		}
-		for (i=0; i<MAX_SW_NUM; i++){
-			close(fd_in[i]);
-		}
+	for (i=0; i<MAX_SW_NUM; i++){
+		sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+9);
+		fd_in[i] = open(gpioPath,O_RDWR);
+		if ( fd_in[i] < 0 ) exit(EXIT_FAILURE);
+	}
+
+	for (i=0; i<MAX_SW_NUM; i++){
+		char value[2];
+		read(fd_in[i], value, 2);
+		if ( value[0] == '0' ) swNew[i] = 0;
+		else swNew[i] = 1;
+	}
+
+	for (i=0; i<MAX_SW_NUM; i++){
+		close(fd_in[i]);
+	}
 		
-		for (i=0; i<MAX_SW_NUM; i++ ){
-			if ( swNew[i] != swOld[i] ){
-				if ( !swNew[i] ){
-					note = 0x3c + 2*i; vel = 0x7f;
-					printf("Now KeyOn of %d\n",i);
-				}
-				else {
-					note = 0x3c + 2*i; vel = 0;
-					printf("Now KeyOff of %d\n",i);
-				}
-				//	Call MSGF
-				sendMessageToMsgf( mutex, 0x90, note, vel );
-				swOld[i] = swNew[i];
+	for (i=0; i<MAX_SW_NUM; i++ ){
+		if ( swNew[i] != swOld[i] ){
+			if ( !swNew[i] ){
+				note = 0x3c + 2*i; vel = 0x7f;
+				printf("Now KeyOn of %d\n",i);
 			}
+			else {
+				note = 0x3c + 2*i; vel = 0;
+				printf("Now KeyOff of %d\n",i);
+			}
+			//	Call MSGF
+			sendMessageToMsgf( mutex, 0x90, note, vel );
+			swOld[i] = swNew[i];
 		}
 	}
 }
+
 //-------------------------------------------------------------------------
-void eventLoopKbd( pthread_mutex_t* mutex )
+//		Keyboard Input
+//-------------------------------------------------------------------------
+static int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
+//-------------------------------------------------------------------------
+static void analyseKeyboard( pthread_mutex_t* mutex )
 {
-	int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
 	unsigned char note, vel;
 	int key;
 	
-	while (( key = getchar()) != -1 ){
+	if (( key = getchar()) != -1 ){
 		bool anykey = false;
 		switch (key){
 			case 'c': note = 0x3c; c?(c=0,vel=0):(c=1,vel=0x7f); anykey = true; break;
@@ -304,6 +310,20 @@ void eventLoopKbd( pthread_mutex_t* mutex )
 			sendMessageToMsgf( mutex, 0x90, note, vel );
 		}
 	}
+}
+
+//-------------------------------------------------------------------------
+//		event Loop
+//-------------------------------------------------------------------------
+void eventLoopInit( pthread_mutex_t* mutex )
+{
+	sendMessageToMsgf( mutex, 0xb0, 0x0b, 0 );
+}
+//-------------------------------------------------------------------------
+void eventLoop( pthread_mutex_t* mutex )
+{
+	analysePressure(mutex);
+	analyseTouchSwitch(mutex);
 }
 
 //-------------------------------------------------------------------------

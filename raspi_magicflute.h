@@ -11,11 +11,10 @@
 
 #include <pthread.h>
 
+void eventLoopInit( pthread_mutex_t* mutex );
+void eventLoop( pthread_mutex_t* mutex );
+
 void initHw( void );
 void quitHw( void );
-	
-void eventLoopGPIO( pthread_mutex_t* mutex );
-void eventLoopKbd( pthread_mutex_t* mutex );
-void eventLoop( pthread_mutex_t* mutex );
 
 #endif /* defined(__ToneGenerator__raspi_magicflute__) */
