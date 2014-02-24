@@ -148,7 +148,7 @@ static void analysePressure( pthread_mutex_t* mutex )
 //-------------------------------------------------------------------------
 //		Touch Sencer Input
 //-------------------------------------------------------------------------
-static unsigned short swdata;
+static unsigned short newSwdata;
 static unsigned char lastNote = 0;
 static unsigned short lastSwData = 0;
 //	Time Measurement
@@ -195,10 +195,10 @@ static void analyseTouchSwitch( pthread_mutex_t* mutex )
 	unsigned char note, vel;
 	struct	timeval tstr;
 
-	swdata = getTchSwData();
+	newSwdata = getTchSwData();
 	if ( startTime == 0 ){
 		//	first time pushing
-		if ( swdata != lastSwData ){
+		if ( newSwdata != lastSwData ){
 			gettimeofday(&tstr, NULL);
 			startTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
 		}
@@ -209,14 +209,14 @@ static void analyseTouchSwitch( pthread_mutex_t* mutex )
 		long waitTime = 70;
 
 		//	magic algorithm for earier judgement
-		if ((~(lastSwData&0x07)&0x07) & (swData&0x07)) waitTime = 20;
+		if ((~(lastSwData&0x07)&0x07) & (newSwdata&0x07)) waitTime = 20;
 
 		if ( currentTime - startTime > waitTime ){	//	over 50msec
 			startTime = 0;
-			printf("Switch Data:%04x\n",swdata);
+			printf("Switch Data:%04x\n",newSwdata);
 			
-			note = tSwTable[swdata & 0x3f];
-			lastSwData = swdata;
+			note = tSwTable[newSwdata & 0x3f];
+			lastSwData = newSwdata;
 			if ( note != 0 ){
 				vel = 0x7f;
 				lastNote = note;
@@ -242,7 +242,7 @@ static void analyseGPIO( pthread_mutex_t* mutex )
 	unsigned char note, vel;
 	int 	i;
 	char	gpioPath[64];
-	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM]
+	int		fd_in[MAX_SW_NUM], swNew[MAX_SW_NUM];
 	
 	for (i=0; i<MAX_SW_NUM; i++){
 		sprintf(gpioPath,"/sys/class/gpio/gpio%d/value",i+9);
