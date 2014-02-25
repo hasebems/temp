@@ -9,10 +9,8 @@
 #ifndef __ToneGenerator__raspi_magicflute__
 #define __ToneGenerator__raspi_magicflute__
 
-#include <pthread.h>
-
-void eventLoopInit( pthread_mutex_t* mutex );
-void eventLoop( pthread_mutex_t* mutex );
+void eventLoopInit( void );
+void eventLoop( void );
 
 void initHw( void );
 void quitHw( void );
