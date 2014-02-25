@@ -270,16 +270,9 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 //-------------------------------------------------------------------------
 //		Audio Theread  /  Transfer method - direct write only
 //-------------------------------------------------------------------------
-struct THREAD_INFO {
-	snd_pcm_t*			alsaHandle;
-	pthread_mutex_t*	mutexHandle;
-};
-
-//-------------------------------------------------------------------------
 #define		BEGIN_TRUNCATE			80	//	percent
 //-------------------------------------------------------------------------
-static void writeAudioToDriver( pthread_mutex_t* mutex, snd_pcm_t* handle,
-							    double* phase, int* first )
+static void writeAudioToDriver( snd_pcm_t* handle, double* phase, int* first )
 {
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t	offset, frames, size;
@@ -305,9 +298,7 @@ static void writeAudioToDriver( pthread_mutex_t* mutex, snd_pcm_t* handle,
 		}
 	
 		//	Call MSGF
-		pthread_mutex_lock( mutex );
 		generate_wave(my_areas, offset, frames, phase);
-		pthread_mutex_unlock( mutex );
 
 		commitres = snd_pcm_mmap_commit(handle, offset, frames);
 		if (commitres < 0 || (snd_pcm_uframes_t)commitres != frames) {
@@ -330,28 +321,23 @@ static void writeAudioToDriver( pthread_mutex_t* mutex, snd_pcm_t* handle,
 
 	//	Reduce Resource
 	if ( limit < execTime ){
-		pthread_mutex_lock( mutex );
 		raspiaudio_ReduceResource();
-		pthread_mutex_unlock( mutex );
-
 		printf("processing time = %d/%d[msec]\n", execTime, latency);
 	}
 }
 
 //-------------------------------------------------------------------------
-static void* audioThread( snd_pcm_t *handle, pthread_mutex_t* mutex )
+static int soundGenerateLoop( snd_pcm_t *handle )
 {
-//	THREAD_INFO* inf = (THREAD_INFO*)thInfo;
-//	snd_pcm_t* handle = inf->alsaHandle;
 	double phase = 0;
 	snd_pcm_sframes_t avail;
 	snd_pcm_state_t state;
 	int err, first = 1;
 	
-	eventLoopInit( mutex );
+	eventLoopInit();
 	
 	while (1) {
-		eventLoop( mutex );
+		eventLoop();
 		
 		state = snd_pcm_state(handle);
 		if (state == SND_PCM_STATE_XRUN) {
@@ -404,44 +390,13 @@ static void* audioThread( snd_pcm_t *handle, pthread_mutex_t* mutex )
 			continue;
 		}
 
-		writeAudioToDriver( mutex, handle, &phase, &first );
+		writeAudioToDriver( handle, &phase, &first );
 	}
 	
 END_OF_THREAD:
-	return (void *)NULL;
+	return -1;
 }
 
-//-------------------------------------------------------------------------
-static int soundGenerateLoop( snd_pcm_t *handle )
-{
-	int	rtn;
-	THREAD_INFO thInfo;
-	pthread_mutex_t	mutex;
-	pthread_t		threadId;
-	
-	//	Initialize Variables
-//	thInfo.alsaHandle = handle;
-//	thInfo.mutexHandle = &mutex;
-	
-	//	Create Audio Thread
-//	pthread_mutex_init(&mutex,NULL);
-//	rtn = pthread_create( &threadId, NULL, audioThread, (void *)&thInfo );
-//	if (rtn != 0) {
-//		fprintf(stderr, "pthread_create() failed for %d.", rtn);
-//		exit(EXIT_FAILURE);
-//	}
-	
-	//	Event Loop
-//	eventLoopInit( &mutex );
-//	while (1){
-//		eventLoop( &mutex );
-//	}
-
-	audioThread( handle, &mutex );
-	
-	//	End of Thread
-	pthread_join( threadId, NULL );
-}
 
 //-------------------------------------------------------------------------
 //			HELP

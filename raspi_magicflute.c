@@ -26,15 +26,12 @@
 //-------------------------------------------------------------------------
 //		event Loop
 //-------------------------------------------------------------------------
-void sendMessageToMsgf( pthread_mutex_t* mutex,
-					    unsigned char msg0, unsigned char msg1, unsigned char msg2 )
+void sendMessageToMsgf( unsigned char msg0, unsigned char msg1, unsigned char msg2 )
 {
 	unsigned char msg[3];
 	msg[0] = msg0; msg[1] = msg1; msg[2] = msg2;
 	//	Call MSGF
-	pthread_mutex_lock( mutex );
 	raspiaudio_Message( msg, 3 );
-	pthread_mutex_unlock( mutex );
 }
 //-------------------------------------------------------------------------
 #if 0
@@ -121,7 +118,7 @@ static unsigned char currentExp = 0;
 static unsigned char lastExp = 0;
 static int currentPressure = 0;
 //-------------------------------------------------------------------------
-static void analysePressure( pthread_mutex_t* mutex )
+static void analysePressure( void )
 {
 	int tempPrs = getPressure();
 	if ( tempPrs != 0 ){
@@ -141,7 +138,7 @@ static void analysePressure( pthread_mutex_t* mutex )
 		else lastExp--;
 		
 		//	Generate Expression Event
-		sendMessageToMsgf( mutex, 0xb0, 0x0b, lastExp );
+		sendMessageToMsgf( 0xb0, 0x0b, lastExp );
 	}
 }
 
@@ -190,7 +187,7 @@ const unsigned char tNoteToColor[12][3] = {
 	{ 0x40, 0x00, 0x80 }
 };
 //-------------------------------------------------------------------------
-static void analyseTouchSwitch( pthread_mutex_t* mutex )
+static void analyseTouchSwitch( void )
 {
 	unsigned char note, vel;
 	struct	timeval tstr;
@@ -226,7 +223,7 @@ static void analyseTouchSwitch( pthread_mutex_t* mutex )
 				note = lastNote;
 				vel = 0x00;
 			}
-			sendMessageToMsgf( mutex, 0x90, note, vel );
+			sendMessageToMsgf( 0x90, note, vel );
 		}
 	}
 }
@@ -237,7 +234,7 @@ static void analyseTouchSwitch( pthread_mutex_t* mutex )
 #define			MAX_SW_NUM			3
 static int		swOld[MAX_SW_NUM] = {1,1,1};
 //-------------------------------------------------------------------------
-static void analyseGPIO( pthread_mutex_t* mutex )
+static void analyseGPIO( void )
 {
 	unsigned char note, vel;
 	int 	i;
@@ -272,7 +269,7 @@ static void analyseGPIO( pthread_mutex_t* mutex )
 				printf("Now KeyOff of %d\n",i);
 			}
 			//	Call MSGF
-			sendMessageToMsgf( mutex, 0x90, note, vel );
+			sendMessageToMsgf( 0x90, note, vel );
 			swOld[i] = swNew[i];
 		}
 	}
@@ -283,7 +280,7 @@ static void analyseGPIO( pthread_mutex_t* mutex )
 //-------------------------------------------------------------------------
 static int	c=0, d=0, e=0, f=0, g=0, a=0, b=0, q=0;
 //-------------------------------------------------------------------------
-static void analyseKeyboard( pthread_mutex_t* mutex )
+static void analyseKeyboard( void )
 {
 	unsigned char note, vel;
 	int key;
@@ -300,14 +297,14 @@ static void analyseKeyboard( pthread_mutex_t* mutex )
 			case 'b': note = 0x47; b?(b=0,vel=0):(b=1,vel=0x7f); anykey = true; break;
 			case 'q':{
 				q?(q=0,vel=0):(q=1,vel=0x7f);
-				sendMessageToMsgf( mutex, 0xc0, vel, 0 );
+				sendMessageToMsgf( 0xc0, vel, 0 );
 				break;
 			}
 			default: break;
 		}
 		if ( anykey == true ){
 			//	Call MSGF
-			sendMessageToMsgf( mutex, 0x90, note, vel );
+			sendMessageToMsgf( 0x90, note, vel );
 		}
 	}
 }
@@ -315,15 +312,15 @@ static void analyseKeyboard( pthread_mutex_t* mutex )
 //-------------------------------------------------------------------------
 //		event Loop
 //-------------------------------------------------------------------------
-void eventLoopInit( pthread_mutex_t* mutex )
+void eventLoopInit( void )
 {
-	sendMessageToMsgf( mutex, 0xb0, 0x0b, 0 );
+	sendMessageToMsgf( 0xb0, 0x0b, 0 );
 }
 //-------------------------------------------------------------------------
-void eventLoop( pthread_mutex_t* mutex )
+void eventLoop( void )
 {
-	analysePressure(mutex);
-	analyseTouchSwitch(mutex);
+	analysePressure();
+	analyseTouchSwitch();
 }
 
 //-------------------------------------------------------------------------
