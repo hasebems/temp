@@ -206,10 +206,10 @@ static void analyseTouchSwitch( pthread_mutex_t* mutex )
 	else {
 		gettimeofday(&tstr, NULL);
 		long currentTime = tstr.tv_sec * 1000 + tstr.tv_usec/1000;
-		long waitTime = 70;
+		long waitTime = 30;
 
 		//	magic algorithm for earier judgement
-		if ((~(lastSwData&0x07)&0x07) & (newSwdata&0x07)) waitTime = 20;
+		if ((~(lastSwData&0x07)&0x07) & (newSwdata&0x07)) waitTime = 60;
 
 		if ( currentTime - startTime > waitTime ){	//	over 50msec
 			startTime = 0;
