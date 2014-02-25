@@ -278,7 +278,8 @@ struct THREAD_INFO {
 //-------------------------------------------------------------------------
 #define		BEGIN_TRUNCATE			80	//	percent
 //-------------------------------------------------------------------------
-static void writeAudioToDriver( pthread_mutex_t* inf, snd_pcm_t* handle, double* phase, int* first )
+static void writeAudioToDriver( pthread_mutex_t* mutex, snd_pcm_t* handle,
+							    double* phase, int* first )
 {
 	const snd_pcm_channel_area_t *my_areas;
 	snd_pcm_uframes_t	offset, frames, size;
