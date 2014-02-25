@@ -347,7 +347,11 @@ static void* audioThread( void* thInfo )
 	snd_pcm_state_t state;
 	int err, first = 1;
 	
+	eventLoopInit( inf->mutexHandle );
+	
 	while (1) {
+		eventLoop( inf->mutexHandle );
+		
 		state = snd_pcm_state(handle);
 		if (state == SND_PCM_STATE_XRUN) {
 			err = xrun_recovery(handle, -EPIPE);
@@ -419,18 +423,20 @@ static int soundGenerateLoop(snd_pcm_t *handle )
 	thInfo.mutexHandle = &mutex;
 	
 	//	Create Audio Thread
-	pthread_mutex_init(&mutex,NULL);
-	rtn = pthread_create( &threadId, NULL, audioThread, (void *)&thInfo );
-	if (rtn != 0) {
-		fprintf(stderr, "pthread_create() failed for %d.", rtn);
-		exit(EXIT_FAILURE);
-	}
+//	pthread_mutex_init(&mutex,NULL);
+//	rtn = pthread_create( &threadId, NULL, audioThread, (void *)&thInfo );
+//	if (rtn != 0) {
+//		fprintf(stderr, "pthread_create() failed for %d.", rtn);
+//		exit(EXIT_FAILURE);
+//	}
 	
 	//	Event Loop
-	eventLoopInit( &mutex );
-	while (1){
-		eventLoop( &mutex );
-	}
+//	eventLoopInit( &mutex );
+//	while (1){
+//		eventLoop( &mutex );
+//	}
+
+	audioThread( (void *)&thInfo );
 	
 	//	End of Thread
 	pthread_join( threadId, NULL );
