@@ -341,7 +341,7 @@ static void writeAudioToDriver( pthread_mutex_t* mutex, snd_pcm_t* handle,
 //-------------------------------------------------------------------------
 static void* audioThread( snd_pcm_t *handle, pthread_mutex_t* mutex )
 {
-	THREAD_INFO* inf = (THREAD_INFO*)thInfo;
+//	THREAD_INFO* inf = (THREAD_INFO*)thInfo;
 //	snd_pcm_t* handle = inf->alsaHandle;
 	double phase = 0;
 	snd_pcm_sframes_t avail;
