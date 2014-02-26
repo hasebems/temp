@@ -104,18 +104,7 @@ unsigned char readI2c( unsigned char adrs )
 	
 	return buf[0];
 }
-//-------------------------------------------------------------------------
-unsigned short readI2c_adrs0_1( void )
-{
-	unsigned char buf[2];
 
-	if (read(i2cDscript, buf, 2) != 2) {					// Read back data into buf[]
-		printf("Unable to read from slave(I2C)\n");
-		exit(1);
-	}
-	
-	return (buf[1]<<8) | buf[0];
-}
 
 //-------------------------------------------------------------------------
 //			SX1509 (GPIO Expansion Device)
@@ -336,10 +325,17 @@ void initMPR121( void )
 //-------------------------------------------------------------------------
 unsigned short getTchSwData( void )
 {
+	unsigned char buf[2];
+
 	//	Start Access
 	accessMPR121();
 	
-	return readI2c_adrs0_1();
+	if (read(i2cDscript, buf, 2) != 2) {	// Read back data into buf[]
+		printf("Unable to read from slave(Touch)\n");
+		exit(1);
+	}
+	
+	return (buf[1]<<8) | buf[0];
 }
 
 
