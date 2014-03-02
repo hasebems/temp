@@ -324,7 +324,7 @@ static void analyseVolume( void )
 		case 2: sendMessageToMsgf( 0xb0, 0x0b, vol ); break;
 	}
 
-	adCh++
+	adCh++;
 	if ( adCh >= 3 ) adCH = 0;
 }
 		
