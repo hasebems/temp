@@ -326,7 +326,7 @@ static void analyseVolume( void )
 			if ( vol != partVolume ){
 				partVolume = vol;
 				sendMessageToMsgf( 0xb0, 0x07, partVolume );
-				printf("volume value:%02d\n",partVolume);
+				printf("volume value: %d\n",partVolume);
 			}
 			break;
 		}
@@ -334,7 +334,7 @@ static void analyseVolume( void )
 			if ( vol != partModulation ){
 				partModulation = vol;
 				sendMessageToMsgf( 0xb0, 0x01, partModulation );
-				printf("volume value:%02d\n",partModulation);
+				printf("Modulation value: %d\n",partModulation);
 			}
 			break;
 		}
@@ -342,7 +342,7 @@ static void analyseVolume( void )
 			if ( vol != partPortamento ){
 				partPortamento = vol;
 				sendMessageToMsgf( 0xb0, 0x05, partPortamento );
-				printf("volume value:%02d\n",partPortamento);
+				printf("Portamento value: %d\n",partPortamento);
 			}
 			break;
 		}
