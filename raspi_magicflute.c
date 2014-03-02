@@ -309,9 +309,12 @@ static void analyseKeyboard( void )
 	}
 }
 //-------------------------------------------------------------------------
-//		Keyboard Input
+//		Volume Input
 //-------------------------------------------------------------------------
 static int adCh = 0;
+static unsigned char partVolume = 100;
+static unsigned char partModulation = 0;
+static unsigned char partPortamento = 0;
 //-------------------------------------------------------------------------
 static void analyseVolume( void )
 {
@@ -319,9 +322,30 @@ static void analyseVolume( void )
 
 	switch ( adCh ){
 		default:
-		case 0: sendMessageToMsgf( 0xb0, 0x07, vol ); break;
-		case 1: sendMessageToMsgf( 0xb0, 0x0b, vol ); break;
-		case 2: sendMessageToMsgf( 0xb0, 0x0b, vol ); break;
+		case 0:{
+			if ( vol != partVolume ){
+				partVolume = vol;
+				sendMessageToMsgf( 0xb0, 0x07, partVolume );
+				printf("volume value:%02d\n",partVolume);
+			}
+			break;
+		}
+		case 1:{
+			if ( vol != partModulation ){
+				partModulation = vol;
+				sendMessageToMsgf( 0xb0, 0x01, partModulation );
+				printf("volume value:%02d\n",partModulation);
+			}
+			break;
+		}
+		case 2:{
+			if ( vol != partPortamento ){
+				partPortamento = vol;
+				sendMessageToMsgf( 0xb0, 0x05, partPortamento );
+				printf("volume value:%02d\n",partPortamento);
+			}
+			break;
+		}
 	}
 
 	adCh++;
