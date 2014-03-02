@@ -406,10 +406,10 @@ void setNext( int adNum )
 	unsigned char buf[3];
 	
 	buf[0] = 0x01;
-	buf[1] = 0xc3 + (adNum << 12);
+	buf[1] = 0xc3 + (adNum << 4);
 	buf[2] = 0x83;
 	
-	if ((write(i2cDscript, buf, 3)) != 4) {			// Write commands to the i2c port
+	if ((write(i2cDscript, buf, 3)) != 3) {			// Write commands to the i2c port
 		printf("Error writing to i2c slave(ADC)\n");
 		exit(1);
 	}
