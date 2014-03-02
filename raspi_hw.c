@@ -44,6 +44,7 @@ static unsigned char GPIO_EXPANDER_ADDRESS = 0x3e;
 static unsigned char PRESSURE_SENSOR_ADDRESS = 0x5d;
 static unsigned char TOUCH_SENSOR_ADDRESS = 0x5a;
 static unsigned char LED_BLINKM_ADDRESS = 0x09;
+static unsigned char ADC_ADDRESS = 0x48;
 
 
 //-------------------------------------------------------------------------
@@ -382,4 +383,75 @@ void changeColor( unsigned char* color )
 	writeBlinkM('c',color);
 }
 
+
+//-------------------------------------------------------------------------
+//			ADS1015 (ADC Sencer : I2c Device)
+//-------------------------------------------------------------------------
+//	for ADC Sencer
+
+//-------------------------------------------------------------------------
+void accessADS1015( void )
+{
+	int		address = ADC_ADDRESS;  // I2C
+	
+	// Set Address
+	if (ioctl(i2cDscript, I2CSLAVE_, address) < 0){
+		printf("Unable to get bus access to talk to slave(ADC)\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+void setNext( int adNum )
+{
+	unsigned char buf[3];
+	
+	buf[0] = 0x01;
+	buf[1] = 0xc3 + (adNum << 12);
+	buf[2] = 0x83;
+	
+	if ((write(i2cDscript, buf, 3)) != 4) {			// Write commands to the i2c port
+		printf("Error writing to i2c slave(ADC)\n");
+		exit(1);
+	}
+}
+//-------------------------------------------------------------------------
+unsigned char getValue( void )
+{
+	unsigned char buf[2];
+	buf[0] = 0x00;								// This is the register we wish to read from
+	
+	if (write(i2cDscript, buf, 1) != 1) {			// Send the register to read from
+		printf("Error writing to i2c slave(ADC:read)\n");
+		exit(1);
+	}
+	
+	if (read(i2cDscript, buf, 1) != 1) {					// Read back data into buf[]
+		printf("Unable to read from slave(ADC)\n");
+		exit(1);
+	}
+	
+	return buf[0];
+}
+//-------------------------------------------------------------------------
+void initADS1015( void )
+{
+	//	Start Access
+	accessADS1015();
+	
+	//	Init Parameter
+	setNext(0);
+}
+//-------------------------------------------------------------------------
+unsigned char getVolume( int number )
+{
+	unsigned char ret;
+	
+	accessADS1015();
+	ret = getValue();
+
+	if ( number >= 2) setNext(0);
+	else setNext(number+1);
+
+	return ret;
+}
 

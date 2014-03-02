@@ -217,7 +217,7 @@ static void analyseTouchSwitch( void )
 			if ( note != 0 ){
 				vel = 0x7f;
 				lastNote = note;
-				changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
+				//changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
 			}
 			else {
 				note = lastNote;
@@ -308,7 +308,27 @@ static void analyseKeyboard( void )
 		}
 	}
 }
+//-------------------------------------------------------------------------
+//		Keyboard Input
+//-------------------------------------------------------------------------
+static int adCh = 0;
+//-------------------------------------------------------------------------
+static void analyseVolume( void )
+{
+	unsigned char vol = getVolume(adCh);
 
+	switch ( adCh ){
+		default:
+		case 0: sendMessageToMsgf( 0xb0, 0x07, vol ); break;
+		case 1: sendMessageToMsgf( 0xb0, 0x0b, vol ); break;
+		case 2: sendMessageToMsgf( 0xb0, 0x0b, vol ); break;
+	}
+
+	adCh++
+	if ( adCh >= 3 ) adCH = 0;
+}
+		
+		
 //-------------------------------------------------------------------------
 //		event Loop
 //-------------------------------------------------------------------------
@@ -319,6 +339,7 @@ void eventLoopInit( void )
 //-------------------------------------------------------------------------
 void eventLoop( void )
 {
+	analyseVolume();
 	analysePressure();
 	analyseTouchSwitch();
 }
@@ -367,7 +388,8 @@ void initHw( void )
 	initLPS331AP();
 	//	initSX1509();
 	initMPR121();
-	initBlinkM();
+	//	initBlinkM();
+	initADS1015();
 }
 //-------------------------------------------------------------------------
 //			Quit
