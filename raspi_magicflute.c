@@ -325,7 +325,7 @@ static void analyseVolume( void )
 	}
 
 	adCh++;
-	if ( adCh >= 3 ) adCH = 0;
+	if ( adCh >= 3 ) adCh = 0;
 }
 		
 		
