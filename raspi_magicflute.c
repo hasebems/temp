@@ -217,7 +217,7 @@ static void analyseTouchSwitch( void )
 			if ( note != 0 ){
 				vel = 0x7f;
 				lastNote = note;
-				//changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
+				changeColor((unsigned char*)tNoteToColor[(note-48)%12]);
 			}
 			else {
 				note = lastNote;
@@ -412,7 +412,7 @@ void initHw( void )
 	initLPS331AP();
 	//	initSX1509();
 	initMPR121();
-	//	initBlinkM();
+	initBlinkM();
 	initADS1015();
 }
 //-------------------------------------------------------------------------
